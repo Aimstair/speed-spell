@@ -1,0 +1,96 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { COLORS } from '../theme/colors';
+import { TYPOGRAPHY } from '../theme/typography';
+
+const { width } = Dimensions.get('window');
+const PADDING = 20;
+const BUTTON_SIZE = (width - PADDING * 2 - 20) / 3;
+
+interface NumpadProps {
+  onPress: (val: string) => void;
+  onClear: () => void;
+  onSubmit: () => void;
+}
+
+export const Numpad: React.FC<NumpadProps> = ({ onPress, onClear, onSubmit }) => {
+  const rows = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+  ];
+
+  return (
+    <View style={styles.container}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map((num) => (
+            <TouchableOpacity key={num} style={styles.button} onPress={() => onPress(num)}>
+              <Text style={styles.buttonText}>{num}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
+      <View style={styles.row}>
+        <TouchableOpacity style={[styles.button, styles.actionButton]} onPress={onClear}>
+          <Text style={styles.actionText}>CLR</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => onPress('0')}>
+          <Text style={styles.buttonText}>0</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.submitButton]} onPress={onSubmit}>
+          <Text style={styles.submitText}>ENT</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    padding: PADDING,
+    gap: 10,
+    backgroundColor: COLORS.background, // Match screen background instead of black for cleaner look, wait I'll use black because it "slides up" and looks cool as a distinct area, or maybe off-white? Let's use #E0E0E0
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  button: {
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE * 0.7,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: COLORS.black,
+  },
+  actionButton: {
+    backgroundColor: COLORS.black,
+  },
+  submitButton: {
+    backgroundColor: COLORS.train,
+  },
+  buttonText: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.black,
+  },
+  actionText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.white,
+  },
+  submitText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.black,
+  }
+});
