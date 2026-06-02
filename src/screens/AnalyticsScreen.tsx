@@ -6,18 +6,19 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
+import { playClick } from '../utils/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Analytics'>;
 
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Expert', 'Olympiad'];
 
 export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
-  const { elo, highestDifficultyCleared, statsByDifficulty, roundsPlayed, recentRounds, resetStatistics } = useStore();
+  const { elo, highestDifficultyCleared, statsByDifficulty, roundsPlayed, recentRounds, resetStatistics, settings } = useStore();
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { playClick(settings.sfx); navigation.goBack(); }}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ANALYTICS</Text>
@@ -81,7 +82,7 @@ export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.resetButton} onPress={resetStatistics}>
+        <TouchableOpacity style={styles.resetButton} onPress={() => { playClick(settings.sfx); resetStatistics(); }}>
           <Text style={styles.resetText}>RESET ALL STATISTICS</Text>
         </TouchableOpacity>
       </ScrollView>

@@ -7,11 +7,12 @@ import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { SettingsModal } from '../components/SettingsModal';
+import { playClick } from '../utils/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 
 export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
-  const { elo, accuracy, roundsPlayed } = useStore();
+  const { elo, accuracy, roundsPlayed, settings } = useStore();
   const [settingsVisible, setSettingsVisible] = useState(false);
 
   return (
@@ -48,7 +49,7 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.buttonsContainer}>
         <TouchableOpacity
           style={[styles.modeButton, { backgroundColor: COLORS.train }]}
-          onPress={() => navigation.navigate('Difficulty', { mode: 'train' })}
+          onPress={() => { playClick(settings.sfx); navigation.navigate('Difficulty', { mode: 'train' }); }}
         >
           <Text style={styles.modeLabel}>01 — PRACTICE</Text>
           <View style={styles.modeTitleRow}>
@@ -60,7 +61,7 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
 
         <TouchableOpacity
           style={[styles.modeButton, { backgroundColor: COLORS.compete }]}
-          onPress={() => navigation.navigate('Difficulty', { mode: 'compete' })}
+          onPress={() => { playClick(settings.sfx); navigation.navigate('Difficulty', { mode: 'compete' }); }}
         >
           <Text style={styles.modeLabel}>02 — RANKED</Text>
           <View style={styles.modeTitleRow}>
@@ -72,11 +73,11 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerButton} onPress={() => navigation.navigate('Analytics')}>
+        <TouchableOpacity style={styles.footerButton} onPress={() => { playClick(settings.sfx); navigation.navigate('Analytics'); }}>
           <Text style={styles.footerText}>ANALYTICS</Text>
         </TouchableOpacity>
         <View style={styles.footerDivider} />
-        <TouchableOpacity style={styles.footerButton} onPress={() => setSettingsVisible(true)}>
+        <TouchableOpacity style={styles.footerButton} onPress={() => { playClick(settings.sfx); setSettingsVisible(true); }}>
           <Text style={styles.footerText}>SETTINGS</Text>
         </TouchableOpacity>
       </View>

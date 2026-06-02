@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
+import { useStore } from '../store/useStore';
+import { playClick } from '../utils/audio';
 
 interface SecondChanceModalProps {
   visible: boolean;
@@ -11,6 +13,7 @@ interface SecondChanceModalProps {
 }
 
 export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, onWatchAd, onDecline }) => {
+  const { settings } = useStore();
   const [timeLeft, setTimeLeft] = useState(10);
   const insets = useSafeAreaInsets();
 
@@ -61,11 +64,11 @@ export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, o
           <View style={styles.separator} />
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.watchButton} onPress={onWatchAd}>
+            <TouchableOpacity style={styles.watchButton} onPress={() => { playClick(settings.sfx); onWatchAd(); }}>
               <Text style={styles.watchText}>WATCH AD TO CONTINUE</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.declineButton} onPress={onDecline}>
+            <TouchableOpacity style={styles.declineButton} onPress={() => { playClick(settings.sfx); onDecline(); }}>
               <Text style={styles.declineText}>END GAME</Text>
             </TouchableOpacity>
           </View>

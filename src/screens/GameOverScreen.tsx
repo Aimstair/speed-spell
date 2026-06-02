@@ -6,11 +6,13 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { useStore } from '../store/useStore';
+import { playClick } from '../utils/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameOver'>;
 
 export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
   const { consecutiveCorrect, mode, difficulty, roundTotalTime, roundBestTime } = route.params;
+  const { settings } = useStore();
 
   const avgTime = consecutiveCorrect > 0 ? roundTotalTime / consecutiveCorrect : null;
 
@@ -52,7 +54,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: COLORS.train }]}
-          onPress={() => navigation.replace('MainMenu')}
+          onPress={() => { playClick(settings.sfx); navigation.replace('MainMenu'); }}
         >
           <Text style={styles.buttonTitle}>MAIN MENU</Text>
           <Text style={styles.arrow}>→</Text>
@@ -60,7 +62,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: COLORS.background, borderTopWidth: 1, borderColor: COLORS.border }]}
-          onPress={() => navigation.replace('Game', { mode, difficulty })}
+          onPress={() => { playClick(settings.sfx); navigation.replace('Game', { mode, difficulty }); }}
         >
           <Text style={styles.buttonTitle}>PLAY AGAIN</Text>
           <Text style={styles.arrow}>→</Text>

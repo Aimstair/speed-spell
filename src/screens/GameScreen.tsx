@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAudioPlayer } from 'expo-audio';
@@ -11,10 +11,12 @@ import { TYPOGRAPHY } from '../theme/typography';
 import { Numpad } from '../components/Numpad';
 import { SecondChanceModal } from '../components/SecondChanceModal';
 import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
+import { playClick } from '../utils/audio';
 
 const beepSource = require('../../assets/Sounds/Beep.mp3');
 const correctSource = require('../../assets/Sounds/Correct.mp3');
 const wrongSource = require('../../assets/Sounds/Wrong.mp3');
+const tickSource = require('../../assets/Sounds/Tick.m4a');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 
@@ -51,14 +53,16 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   const beepPlayer = useAudioPlayer(beepSource);
   const correctPlayer = useAudioPlayer(correctSource);
   const wrongPlayer = useAudioPlayer(wrongSource);
+  const tickPlayer = useAudioPlayer(tickSource);
 
-  const playSound = (type: 'beep' | 'correct' | 'wrong') => {
+  const playSound = (type: 'beep' | 'correct' | 'wrong' | 'tick') => {
     if (!settings.sfx) return;
     try {
       let player;
       if (type === 'beep') player = beepPlayer;
       else if (type === 'correct') player = correctPlayer;
       else if (type === 'wrong') player = wrongPlayer;
+      else if (type === 'tick') player = tickPlayer;
 
       if (player) {
         player.seekTo(0);
@@ -110,12 +114,14 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     setCountdown(3);
     setInputValue('');
     bgColorAnim.setValue(0);
+    playSound('tick');
 
     let currentCount = 3;
     const interval = setInterval(() => {
       currentCount--;
       if (currentCount > 0) {
         setCountdown(currentCount);
+        playSound('tick');
       } else {
         clearInterval(interval);
         startFlashing();
@@ -262,6 +268,18 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     });
   };
 
+  const handleBack = () => {
+    playClick(settings.sfx);
+    Alert.alert(
+      "Quit Game?",
+      "Are you sure you want to quit? Your current streak will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Quit", style: "destructive", onPress: () => navigation.goBack() }
+      ]
+    );
+  };
+
   const backgroundColor = bgColorAnim.interpolate({
     inputRange: [-1, 0, 1],
     outputRange: [COLORS.red, settings.backgroundHex, COLORS.green]
@@ -273,7 +291,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
         <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
               <Text style={{ fontSize: 24, color: COLORS.textSecondary }}>←</Text>
             </TouchableOpacity>
             <Text style={styles.headerText}>{mode.toUpperCase()} · {difficulty}</Text>

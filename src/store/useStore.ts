@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../theme/colors';
 
 export interface GameSettings {
-  music: boolean;
   sfx: boolean;
   screenShake: boolean;
   backgroundHex: string;
@@ -34,7 +33,6 @@ export interface AppState {
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
-  music: true,
   sfx: true,
   screenShake: true,
   backgroundHex: COLORS.swatches[0],

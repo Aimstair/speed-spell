@@ -7,20 +7,22 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "buildNumber": "1.0.0"
     },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#F3F2EE"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#F3F2EE",
         "foregroundImage": "./assets/icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aimstair.speedmath"
+      "package": "com.aimstair.speedmath",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

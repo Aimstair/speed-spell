@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Switch, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Switch, TouchableWithoutFeedback, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
+import { playClick } from '../utils/audio';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -22,40 +23,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
             <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 40) }]}>
               <View style={styles.header}>
                 <Text style={styles.title}>SETTINGS</Text>
-                <TouchableOpacity onPress={onClose}>
+                <TouchableOpacity onPress={() => { playClick(settings.sfx); onClose(); }}>
                   <Text style={styles.doneText}>DONE</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.row}>
-                <Text style={styles.label}>Music</Text>
-                <Switch 
-                  value={settings.music} 
-                  onValueChange={(v) => updateSettings({ music: v })}
-                  trackColor={{ false: COLORS.border, true: COLORS.train }}
-                  thumbColor={COLORS.white}
-                />
-              </View>
-              <View style={styles.separator} />
-              
-              <View style={styles.row}>
                 <Text style={styles.label}>Sound Effects</Text>
-                <Switch 
-                  value={settings.sfx} 
+                <Switch
+                  value={settings.sfx}
                   onValueChange={(v) => updateSettings({ sfx: v })}
                   trackColor={{ false: COLORS.border, true: COLORS.train }}
                   thumbColor={COLORS.white}
                 />
               </View>
               <View style={styles.separator} />
-              
+
               <View style={styles.row}>
                 <View>
                   <Text style={styles.label}>Screen Shake</Text>
                   <Text style={styles.subtext}>Vibrates on wrong answer</Text>
                 </View>
-                <Switch 
-                  value={settings.screenShake} 
+                <Switch
+                  value={settings.screenShake}
                   onValueChange={(v) => updateSettings({ screenShake: v })}
                   trackColor={{ false: COLORS.border, true: COLORS.train }}
                   thumbColor={COLORS.white}
@@ -74,11 +64,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                         { backgroundColor: swatch },
                         settings.backgroundHex === swatch && styles.swatchSelected
                       ]}
-                      onPress={() => updateSettings({ backgroundHex: swatch })}
+                      onPress={() => { playClick(settings.sfx); updateSettings({ backgroundHex: swatch }); }}
                     />
                   ))}
                 </View>
               </View>
+              <View style={styles.separator} />
+
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => {
+                  playClick(settings.sfx);
+                  Linking.openURL('https://aimstair.app/speedmath/privacy');
+                }}
+              >
+                <Text style={styles.label}>Privacy Policy</Text>
+                <Text style={styles.arrow}>→</Text>
+              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -155,5 +157,9 @@ const styles = StyleSheet.create({
   swatchSelected: {
     borderWidth: 3,
     borderColor: COLORS.black,
+  },
+  arrow: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.textSecondary,
   }
 });

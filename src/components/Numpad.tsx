@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useAudioPlayer } from 'expo-audio';
+import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 
 const { width } = Dimensions.get('window');
 const PADDING = 20;
 const BUTTON_SIZE = (width - PADDING * 2 - 20) / 3;
+
+const typeSource = require('../../assets/Sounds/Type.mp3');
 
 interface NumpadProps {
   onPress: (val: string) => void;
@@ -14,6 +18,29 @@ interface NumpadProps {
 }
 
 export const Numpad: React.FC<NumpadProps> = ({ onPress, onClear, onSubmit }) => {
+  const { settings } = useStore();
+  const typePlayer = useAudioPlayer(typeSource);
+
+  const handlePress = (num: string) => {
+    if (settings.sfx && typePlayer) {
+      try {
+        typePlayer.seekTo(0);
+        typePlayer.play();
+      } catch (e) {}
+    }
+    onPress(num);
+  };
+
+  const handleClear = () => {
+    if (settings.sfx && typePlayer) {
+      try {
+        typePlayer.seekTo(0);
+        typePlayer.play();
+      } catch (e) {}
+    }
+    onClear();
+  };
+
   const rows = [
     ['1', '2', '3'],
     ['4', '5', '6'],
@@ -25,17 +52,17 @@ export const Numpad: React.FC<NumpadProps> = ({ onPress, onClear, onSubmit }) =>
       {rows.map((row, rowIndex) => (
         <View key={rowIndex} style={styles.row}>
           {row.map((num) => (
-            <TouchableOpacity key={num} style={styles.button} onPress={() => onPress(num)}>
+            <TouchableOpacity key={num} style={styles.button} onPress={() => handlePress(num)}>
               <Text style={styles.buttonText}>{num}</Text>
             </TouchableOpacity>
           ))}
         </View>
       ))}
       <View style={styles.row}>
-        <TouchableOpacity style={[styles.button, styles.actionButton]} onPress={onClear}>
+        <TouchableOpacity style={[styles.button, styles.actionButton]} onPress={handleClear}>
           <Text style={styles.actionText}>CLR</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => onPress('0')}>
+        <TouchableOpacity style={styles.button} onPress={() => handlePress('0')}>
           <Text style={styles.buttonText}>0</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.button, styles.submitButton]} onPress={onSubmit}>

@@ -5,6 +5,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
+import { useStore } from '../store/useStore';
+import { playClick } from '../utils/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Difficulty'>;
 
@@ -18,11 +20,12 @@ const DIFFICULTIES = [
 export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { mode } = route.params;
   const isTrain = mode === 'train';
+  const { settings } = useStore();
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { playClick(settings.sfx); navigation.goBack(); }}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>DIFFICULTY</Text>
@@ -44,7 +47,7 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity
             key={diff.id}
             style={styles.card}
-            onPress={() => navigation.navigate('Game', { mode, difficulty: diff.id })}
+            onPress={() => { playClick(settings.sfx); navigation.navigate('Game', { mode, difficulty: diff.id }); }}
           >
             <View style={styles.cardLeft}>
               <Text style={styles.cardNum}>{diff.num}</Text>
