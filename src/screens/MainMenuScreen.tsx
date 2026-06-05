@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -8,12 +9,62 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { SettingsModal } from '../components/SettingsModal';
 import { playClick } from '../utils/audio';
+import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import { AdNotReadyModal } from '../components/AdNotReadyModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 
+const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/4277287397';
+const rewarded = RewardedAd.createForAdRequest(adUnitId, {
+  requestNonPersonalizedAdsOnly: true,
+});
+
 export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
-  const { elo, accuracy, roundsPlayed, settings } = useStore();
+  const { elo, accuracy, roundsPlayed, settings, competeTries, syncDailyTries, addCompeteTry } = useStore();
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
+  const [adError, setAdError] = useState<string | undefined>();
+
+  useEffect(() => {
+    const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      setAdLoaded(true);
+    });
+    const unsubscribeEarned = rewarded.addAdEventListener(
+      RewardedAdEventType.EARNED_REWARD,
+      () => {
+        addCompeteTry();
+      },
+    );
+    const unsubscribeClosed = rewarded.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setAdLoaded(false);
+        rewarded.load();
+      }
+    );
+    const unsubscribeError = rewarded.addAdEventListener(
+      AdEventType.ERROR,
+      (error) => {
+        setAdError(error?.message || 'Unknown Ad Error');
+      }
+    );
+
+    rewarded.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeClosed();
+      unsubscribeError();
+    };
+  }, [addCompeteTry]);
+
+  useFocusEffect(
+    useCallback(() => {
+      syncDailyTries();
+    }, [syncDailyTries])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -60,15 +111,26 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.modeButton, { backgroundColor: COLORS.compete }]}
-          onPress={() => { playClick(settings.sfx); navigation.navigate('Difficulty', { mode: 'compete' }); }}
+          style={[styles.modeButton, { backgroundColor: COLORS.compete, opacity: competeTries === 0 ? 0.8 : 1 }]}
+          onPress={() => {
+            playClick(settings.sfx);
+            if (competeTries === 0) {
+              if (adLoaded) {
+                rewarded.show();
+              } else {
+                setAdNotReadyVisible(true);
+              }
+            } else {
+              navigation.navigate('Difficulty', { mode: 'compete' });
+            }
+          }}
         >
           <Text style={styles.modeLabel}>02 — RANKED</Text>
           <View style={styles.modeTitleRow}>
             <Text style={styles.modeTitle}>COMPETE</Text>
             <Text style={styles.arrow}>→</Text>
           </View>
-          <Text style={styles.modeSub}>ELO changes</Text>
+          <Text style={styles.modeSub}>{competeTries > 0 ? `${competeTries} TRIES LEFT` : 'WATCH AD FOR 1 TRY'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -83,6 +145,12 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
+
+      <AdNotReadyModal
+        visible={adNotReadyVisible}
+        onClose={() => setAdNotReadyVisible(false)}
+        errorMsg={adError}
+      />
     </SafeAreaView>
   );
 };

@@ -2,7 +2,7 @@
   "expo": {
     "name": "SpeedMath",
     "slug": "speed-math",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,13 +16,24 @@
       "backgroundColor": "#F3F2EE"
     },
     "android": {
+      "splash": {
+        "image": "./assets/transparent.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#F3F2EE"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#F3F2EE",
         "foregroundImage": "./assets/icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aimstair.speedmath",
-      "versionCode": 1
+      "package": "com.aimteralabs.speedmath",
+      "versionCode": 2,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +47,11 @@
         }
       ],
       "expo-audio"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "420d50fc-0927-4ea8-9066-014b55044c46"
+      }
+    }
   }
 }

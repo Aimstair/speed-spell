@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -12,15 +12,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Difficulty'>;
 
 const DIFFICULTIES = [
   { id: 'Beginner', num: '01', details: '5 numbers    1 digit    1.0s flicker' },
-  { id: 'Intermediate', num: '02', details: '8 numbers    2-3 digits    0.8s flicker' },
-  { id: 'Expert', num: '03', details: '10 numbers    3-4 digits    0.6s flicker' },
-  { id: 'Olympiad', num: '04', details: '10 numbers    4-5 digits    0.4s flicker' },
+  { id: 'Intermediate', num: '02', details: '5 numbers    2 digits    1.0s flicker' },
+  { id: 'Expert', num: '03', details: '8 numbers    3 digits    0.8s flicker' },
+  { id: 'Olympiad', num: '04', details: '10 numbers    4 digits    0.5s flicker' },
 ];
 
 export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { mode } = route.params;
   const isTrain = mode === 'train';
-  const { settings } = useStore();
+  const { settings, consumeCompeteTry } = useStore();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -47,7 +47,17 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity
             key={diff.id}
             style={styles.card}
-            onPress={() => { playClick(settings.sfx); navigation.navigate('Game', { mode, difficulty: diff.id }); }}
+            onPress={() => {
+              playClick(settings.sfx);
+              if (mode === 'compete') {
+                const success = consumeCompeteTry();
+                if (!success) {
+                  Alert.alert('Out of tries', 'You have used all 5 compete tries for today. Come back tomorrow!');
+                  return;
+                }
+              }
+              navigation.navigate('Game', { mode, difficulty: diff.id });
+            }}
           >
             <View style={styles.cardLeft}>
               <Text style={styles.cardNum}>{diff.num}</Text>

@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useStore } from '../store/useStore';
@@ -10,13 +9,10 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { Numpad } from '../components/Numpad';
 import { SecondChanceModal } from '../components/SecondChanceModal';
-import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
-import { playClick } from '../utils/audio';
-
-const beepSource = require('../../assets/Sounds/Beep.mp3');
-const correctSource = require('../../assets/Sounds/Correct.mp3');
-const wrongSource = require('../../assets/Sounds/Wrong.mp3');
-const tickSource = require('../../assets/Sounds/Tick.m4a');
+import { QuitGameModal } from '../components/QuitGameModal';
+import { AdNotReadyModal } from '../components/AdNotReadyModal';
+import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import { playClick, playSoundEffect } from '../utils/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 
@@ -43,34 +39,23 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [roundBestTime, setRoundBestTime] = useState<number | null>(null);
 
   const [secondChanceVisible, setSecondChanceVisible] = useState(false);
+  const [quitModalVisible, setQuitModalVisible] = useState(false);
   const [hasRetried, setHasRetried] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
+  const [adError, setAdError] = useState<string | undefined>();
+
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const flashIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resolutionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const bgColorAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  const beepPlayer = useAudioPlayer(beepSource);
-  const correctPlayer = useAudioPlayer(correctSource);
-  const wrongPlayer = useAudioPlayer(wrongSource);
-  const tickPlayer = useAudioPlayer(tickSource);
-
   const playSound = (type: 'beep' | 'correct' | 'wrong' | 'tick') => {
-    if (!settings.sfx) return;
-    try {
-      let player;
-      if (type === 'beep') player = beepPlayer;
-      else if (type === 'correct') player = correctPlayer;
-      else if (type === 'wrong') player = wrongPlayer;
-      else if (type === 'tick') player = tickPlayer;
-
-      if (player) {
-        player.seekTo(0);
-        player.play();
-      }
-    } catch (e) {
-      console.log('Error playing sound', e);
-    }
+    playSoundEffect(type, settings.sfx);
   };
 
   useEffect(() => {
@@ -82,9 +67,21 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       () => {
         setSecondChanceVisible(false);
         setHasRetried(true);
-        rewarded.load(); // Load next ad
         startRound();
       },
+    );
+    const unsubscribeClosed = rewarded.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setAdLoaded(false);
+        rewarded.load();
+      }
+    );
+    const unsubscribeError = rewarded.addAdEventListener(
+      AdEventType.ERROR,
+      (error) => {
+        setAdError(error?.message || 'Unknown Ad Error');
+      }
     );
 
     rewarded.load();
@@ -92,24 +89,37 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     return () => {
       unsubscribeLoaded();
       unsubscribeEarned();
+      unsubscribeClosed();
+      unsubscribeError();
     };
   }, []);
 
   useEffect(() => {
     startRound();
+    return () => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (flashIntervalRef.current) clearInterval(flashIntervalRef.current);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      if (resolutionTimeoutRef.current) clearTimeout(resolutionTimeoutRef.current);
+    };
   }, []);
 
   const getDifficultySettings = () => {
     switch (difficulty) {
       case 'Beginner': return { count: 5, minDig: 1, maxDig: 1, duration: 1000 };
-      case 'Intermediate': return { count: 8, minDig: 2, maxDig: 3, duration: 800 };
-      case 'Expert': return { count: 10, minDig: 3, maxDig: 4, duration: 600 };
-      case 'Olympiad': return { count: 10, minDig: 4, maxDig: 5, duration: 400 };
+      case 'Intermediate': return { count: 5, minDig: 2, maxDig: 2, duration: 1000 };
+      case 'Expert': return { count: 8, minDig: 3, maxDig: 3, duration: 800 };
+      case 'Olympiad': return { count: 10, minDig: 4, maxDig: 4, duration: 500 };
       default: return { count: 4, minDig: 1, maxDig: 2, duration: 1000 };
     }
   };
 
   const startRound = () => {
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    if (flashIntervalRef.current) clearInterval(flashIntervalRef.current);
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    if (resolutionTimeoutRef.current) clearTimeout(resolutionTimeoutRef.current);
+
     setPhase('COUNTDOWN');
     setCountdown(3);
     setInputValue('');
@@ -117,13 +127,13 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     playSound('tick');
 
     let currentCount = 3;
-    const interval = setInterval(() => {
+    countdownIntervalRef.current = setInterval(() => {
       currentCount--;
       if (currentCount > 0) {
         setCountdown(currentCount);
         playSound('tick');
       } else {
-        clearInterval(interval);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         startFlashing();
       }
     }, 800);
@@ -136,9 +146,9 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     let sum = 0;
     let flashes = 0;
 
-    const flashInterval = setInterval(() => {
+    flashIntervalRef.current = setInterval(() => {
       if (flashes >= count) {
-        clearInterval(flashInterval);
+        if (flashIntervalRef.current) clearInterval(flashIntervalRef.current);
         setFlashNumber(null);
         setTargetSum(sum);
         startInput();
@@ -155,7 +165,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       flashes++;
 
       // Blank out briefly before next number
-      setTimeout(() => setFlashNumber(null), duration * 0.8);
+      flashTimeoutRef.current = setTimeout(() => setFlashNumber(null), duration * 0.8);
 
     }, duration);
   };
@@ -201,21 +211,34 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     if (isCorrect) {
       playSound('correct');
       if (settings.sfx) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       setConsecutiveCorrect(prev => prev + 1);
       setRoundTotalTime(prev => prev + timeTaken);
       setRoundBestTime(prev => prev === null ? timeTaken : Math.min(prev, timeTaken));
+      
       if (mode === 'compete') {
+        const delta = recordRound(true, timeTaken, difficulty);
+        resolutionTimeoutRef.current = setTimeout(() => {
+          navigation.replace('GameOver', {
+            consecutiveCorrect: consecutiveCorrect + 1,
+            mode,
+            difficulty,
+            roundTotalTime: roundTotalTime + timeTaken,
+            roundBestTime: roundBestTime ? Math.min(roundBestTime, timeTaken) : timeTaken,
+            isWin: true,
+            eloDelta: delta
+          });
+        }, 1500);
+      } else {
         recordRound(true, timeTaken, difficulty);
+        resolutionTimeoutRef.current = setTimeout(() => {
+          startRound();
+        }, 1000);
       }
-
-      setTimeout(() => {
-        startRound();
-      }, 1000);
     } else {
       playSound('wrong');
       if (settings.sfx) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      
+
       if (settings.screenShake) {
         Animated.sequence([
           Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
@@ -227,22 +250,33 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       if (mode === 'compete') {
-        recordRound(false, null, difficulty);
-      }
-
-      setTimeout(() => {
-        if (!hasRetried) {
-          setSecondChanceVisible(true);
-        } else {
+        const delta = recordRound(false, null, difficulty);
+        resolutionTimeoutRef.current = setTimeout(() => {
           navigation.replace('GameOver', {
             consecutiveCorrect,
             mode,
             difficulty,
             roundTotalTime,
-            roundBestTime
+            roundBestTime,
+            isWin: false,
+            eloDelta: delta
           });
-        }
-      }, 1500);
+        }, 1500);
+      } else {
+        resolutionTimeoutRef.current = setTimeout(() => {
+          if (!hasRetried) {
+            setSecondChanceVisible(true);
+          } else {
+            navigation.replace('GameOver', {
+              consecutiveCorrect,
+              mode,
+              difficulty,
+              roundTotalTime,
+              roundBestTime
+            });
+          }
+        }, 1500);
+      }
     }
   };
 
@@ -250,10 +284,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     if (adLoaded) {
       rewarded.show();
     } else {
-      // Fallback if ad failed to load, don't block the user
-      setSecondChanceVisible(false);
-      setHasRetried(true);
-      startRound();
+      setAdNotReadyVisible(true);
     }
   };
 
@@ -270,14 +301,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleBack = () => {
     playClick(settings.sfx);
-    Alert.alert(
-      "Quit Game?",
-      "Are you sure you want to quit? Your current streak will be lost.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Quit", style: "destructive", onPress: () => navigation.goBack() }
-      ]
-    );
+    setQuitModalVisible(true);
   };
 
   const backgroundColor = bgColorAnim.interpolate({
@@ -289,21 +313,24 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     <Animated.View style={[styles.container, { backgroundColor }]}>
       <Animated.View style={{ flex: 1, transform: [{ translateX: shakeAnim }] }}>
         <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Text style={{ fontSize: 24, color: COLORS.textSecondary }}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerText}>{mode.toUpperCase()} · {difficulty}</Text>
+          <View style={styles.header}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                <Text style={{ fontSize: 24, color: COLORS.textSecondary }}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerText}>{mode.toUpperCase()} · {difficulty}</Text>
+            </View>
+            <Text style={styles.streakText}>STREAK: {consecutiveCorrect}</Text>
           </View>
-          <Text style={styles.streakText}>STREAK: {consecutiveCorrect}</Text>
-        </View>
 
 
 
           <View style={styles.centerContainer}>
             {phase === 'COUNTDOWN' && (
-              <Text style={styles.countdownText}>{countdown}</Text>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.startingInText}>STARTING IN...</Text>
+                <Text style={styles.countdownText}>{countdown}</Text>
+              </View>
             )}
             {phase === 'FLASHING' && flashNumber !== null && (
               <Text style={styles.flashText}>{flashNumber}</Text>
@@ -331,6 +358,20 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
             visible={secondChanceVisible}
             onWatchAd={handleWatchAd}
             onDecline={handleDeclineAd}
+          />
+
+          <QuitGameModal
+            visible={quitModalVisible}
+            onCancel={() => setQuitModalVisible(false)}
+            onQuit={() => {
+              setQuitModalVisible(false);
+              navigation.goBack();
+            }}
+          />
+          <AdNotReadyModal
+            visible={adNotReadyVisible}
+            onClose={() => setAdNotReadyVisible(false)}
+            errorMsg={adError}
           />
         </SafeAreaView>
       </Animated.View>
@@ -382,6 +423,11 @@ const styles = StyleSheet.create({
   countdownText: {
     ...TYPOGRAPHY.h1,
     fontSize: 120,
+  },
+  startingInText: {
+    ...TYPOGRAPHY.subtitle,
+    color: COLORS.textSecondary,
+    marginBottom: -10,
   },
   flashText: {
     ...TYPOGRAPHY.h1,

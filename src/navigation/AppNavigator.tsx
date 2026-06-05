@@ -14,7 +14,7 @@ export type RootStackParamList = {
   MainMenu: undefined;
   Difficulty: { mode: 'train' | 'compete' };
   Game: { difficulty: string; mode: 'train' | 'compete' };
-  GameOver: { consecutiveCorrect: number; mode: 'train' | 'compete'; difficulty: string; roundTotalTime: number; roundBestTime: number | null };
+  GameOver: { consecutiveCorrect: number; mode: 'train' | 'compete'; difficulty: string; roundTotalTime: number; roundBestTime: number | null; isWin?: boolean; eloDelta?: number };
   Analytics: undefined;
 };
 
