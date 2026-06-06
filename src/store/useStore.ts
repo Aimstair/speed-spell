@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../theme/colors';
+import { scheduleCompeteReplenishNotification } from '../utils/notifications';
+
+const getLocalTodayString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 export interface GameSettings {
   sfx: boolean;
@@ -27,15 +33,17 @@ export interface AppState {
 
   competeTries: number;
   lastCompeteDate: string;
+  hasSeenTutorial: boolean;
 
   // Actions
   updateElo: (amount: number) => void;
-  recordRound: (isCorrect: boolean, timeInSeconds: number | null, difficultyCleared?: string) => number;
+  recordRound: (isCorrect: boolean, timeInSeconds: number | null, difficultyCleared?: string, mode?: 'train' | 'compete') => number;
   updateSettings: (settings: Partial<GameSettings>) => void;
   resetStatistics: () => void;
   syncDailyTries: () => void;
   consumeCompeteTry: () => boolean;
   addCompeteTry: () => void;
+  completeTutorial: () => void;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -56,11 +64,14 @@ export const useStore = create<AppState>()(
       settings: DEFAULT_SETTINGS,
       statsByDifficulty: {},
       competeTries: 5,
-      lastCompeteDate: new Date().toISOString().split('T')[0],
+      lastCompeteDate: getLocalTodayString(),
+      hasSeenTutorial: false,
 
       updateElo: (amount) => set((state) => ({ elo: Math.max(0, state.elo + amount) })),
 
-      recordRound: (isCorrect, timeInSeconds, difficultyCleared) => {
+      recordRound: (isCorrect, timeInSeconds, difficultyCleared, mode) => {
+        if (mode !== 'compete') return 0;
+        
         let finalEloDelta = 0;
         set((state) => {
           const newRoundsPlayed = state.roundsPlayed + 1;
@@ -91,7 +102,7 @@ export const useStore = create<AppState>()(
           }
 
           let eloDelta = 0;
-          if (difficultyCleared) {
+          if (difficultyCleared && mode === 'compete') {
             switch (difficultyCleared) {
               case 'Beginner': eloDelta = isCorrect ? 1 : -1; break;
               case 'Intermediate': eloDelta = isCorrect ? 2 : -1; break;
@@ -127,10 +138,11 @@ export const useStore = create<AppState>()(
         highestDifficultyCleared: null,
         recentRounds: [],
         statsByDifficulty: {},
+        hasSeenTutorial: false,
       }),
 
       syncDailyTries: () => set((state) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalTodayString();
         if (state.lastCompeteDate !== today) {
           return { competeTries: 5, lastCompeteDate: today };
         }
@@ -139,8 +151,9 @@ export const useStore = create<AppState>()(
 
       consumeCompeteTry: () => {
         let success = false;
+        let finalTries = -1;
         set((state) => {
-          const today = new Date().toISOString().split('T')[0];
+          const today = getLocalTodayString();
           let currentTries = state.competeTries;
           let newDate = state.lastCompeteDate;
           if (newDate !== today) {
@@ -149,14 +162,22 @@ export const useStore = create<AppState>()(
           }
           if (currentTries > 0) {
             success = true;
-            return { competeTries: currentTries - 1, lastCompeteDate: newDate };
+            finalTries = currentTries - 1;
+            return { competeTries: finalTries, lastCompeteDate: newDate };
           }
+          finalTries = 0;
           return { competeTries: 0, lastCompeteDate: newDate };
         });
+
+        if (success && finalTries === 0) {
+          scheduleCompeteReplenishNotification();
+        }
+
         return success;
       },
 
       addCompeteTry: () => set((state) => ({ competeTries: state.competeTries + 1 })),
+      completeTutorial: () => set({ hasSeenTutorial: true }),
     }),
     {
       name: 'speed-math-storage',

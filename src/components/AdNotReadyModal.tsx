@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   errorText: {
     ...TYPOGRAPHY.body,
     fontSize: 12,
-    color: COLORS.wrong,
+    color: COLORS.red,
     marginBottom: 20,
   },
   buttonRow: {

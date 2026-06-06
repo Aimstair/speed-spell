@@ -13,12 +13,16 @@ const beepSource = require('../../assets/Sounds/Beep.mp3');
 const correctSource = require('../../assets/Sounds/Correct.mp3');
 const wrongSource = require('../../assets/Sounds/Wrong.mp3');
 const tickSource = require('../../assets/Sounds/Tick.m4a');
+const typeSource = require('../../assets/Sounds/Type.mp3');
 
 export const clickPlayer = createAudioPlayer(clickSource);
 export const beepPlayer = createAudioPlayer(beepSource);
 export const correctPlayer = createAudioPlayer(correctSource);
 export const wrongPlayer = createAudioPlayer(wrongSource);
 export const tickPlayer = createAudioPlayer(tickSource);
+export const typePlayer = createAudioPlayer(typeSource);
+
+const playedOnce: Record<string, boolean> = {};
 
 export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'click', sfxEnabled: boolean) => {
   if (!sfxEnabled) return;
@@ -32,8 +36,11 @@ export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'c
 
     if (player) {
       player.volume = SOUND_VOLUMES[type];
-      player.seekTo(0);
+      if (playedOnce[type]) {
+        player.seekTo(0);
+      }
       player.play();
+      playedOnce[type] = true;
     }
   } catch (e) {
     console.warn(`Failed to play ${type} sound`, e);

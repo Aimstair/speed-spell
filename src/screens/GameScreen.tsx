@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, Alert, BackHandler } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
@@ -13,13 +13,13 @@ import { QuitGameModal } from '../components/QuitGameModal';
 import { AdNotReadyModal } from '../components/AdNotReadyModal';
 import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { playClick, playSoundEffect } from '../utils/audio';
+import { ms, scaleY } from '../utils/scale';
+
+const BACK_ARROW = '\u2190';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 
 const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/4277287397';
-const rewarded = RewardedAd.createForAdRequest(adUnitId, {
-  requestNonPersonalizedAdsOnly: true,
-});
 
 export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -45,10 +45,12 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
   const [adError, setAdError] = useState<string | undefined>();
 
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const flashIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const resolutionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flashIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resolutionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewardedRef = useRef<ReturnType<typeof RewardedAd.createForAdRequest> | null>(null);
+  const adUnsubscribersRef = useRef<(() => void)[]>([]);
 
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const bgColorAnim = useRef(new Animated.Value(0)).current;
@@ -58,41 +60,44 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     playSoundEffect(type, settings.sfx);
   };
 
-  useEffect(() => {
-    const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      setAdLoaded(true);
+  const loadNewAd = useCallback(() => {
+    adUnsubscribersRef.current.forEach(unsub => unsub());
+    adUnsubscribersRef.current = [];
+
+    const ad = RewardedAd.createForAdRequest(adUnitId, {
+      requestNonPersonalizedAdsOnly: true,
     });
-    const unsubscribeEarned = rewarded.addAdEventListener(
-      RewardedAdEventType.EARNED_REWARD,
-      () => {
+    rewardedRef.current = ad;
+    setAdLoaded(false);
+
+    const unsubs = [
+      ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+        setAdLoaded(true);
+      }),
+      ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
         setSecondChanceVisible(false);
         setHasRetried(true);
         startRound();
-      },
-    );
-    const unsubscribeClosed = rewarded.addAdEventListener(
-      AdEventType.CLOSED,
-      () => {
+      }),
+      ad.addAdEventListener(AdEventType.CLOSED, () => {
         setAdLoaded(false);
-        rewarded.load();
-      }
-    );
-    const unsubscribeError = rewarded.addAdEventListener(
-      AdEventType.ERROR,
-      (error) => {
+        loadNewAd();
+      }),
+      ad.addAdEventListener(AdEventType.ERROR, (error) => {
         setAdError(error?.message || 'Unknown Ad Error');
-      }
-    );
+      }),
+    ];
+    adUnsubscribersRef.current = unsubs;
 
-    rewarded.load();
-
-    return () => {
-      unsubscribeLoaded();
-      unsubscribeEarned();
-      unsubscribeClosed();
-      unsubscribeError();
-    };
+    ad.load();
   }, []);
+
+  useEffect(() => {
+    loadNewAd();
+    return () => {
+      adUnsubscribersRef.current.forEach(unsub => unsub());
+    };
+  }, [loadNewAd]);
 
   useEffect(() => {
     startRound();
@@ -102,6 +107,20 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
       if (resolutionTimeoutRef.current) clearTimeout(resolutionTimeoutRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const backAction = () => {
+      handleBack();
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+
+    return () => backHandler.remove();
   }, []);
 
   const getDifficultySettings = () => {
@@ -177,19 +196,21 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleInput = (val: string) => {
-    if (inputValue.length < 10) {
+    if (phase !== 'INPUT') return;
+    if (inputValue.length < 8) {
       setInputValue(prev => prev + val);
       if (settings.sfx) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const handleClear = () => {
+    if (phase !== 'INPUT') return;
     setInputValue('');
     if (settings.sfx) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleSubmit = () => {
-    if (inputValue === '') return;
+    if (phase !== 'INPUT' || inputValue === '') return;
 
     const timeTaken = (Date.now() - startTime) / 1000;
     const isCorrect = parseInt(inputValue) === targetSum;
@@ -202,11 +223,19 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
 
     setPhase('RESOLUTION');
 
-    Animated.timing(bgColorAnim, {
-      toValue: isCorrect ? 1 : -1,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    setTimeout(() => {
+      Animated.timing(bgColorAnim, {
+        toValue: isCorrect ? 1 : -1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }, 100);
+
+    // Animated.timing(bgColorAnim, {
+    //   toValue: isCorrect ? 1 : -1,
+    //   duration: 300,
+    //   useNativeDriver: false,
+    // }).start();
 
     if (isCorrect) {
       playSound('correct');
@@ -215,9 +244,9 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       setConsecutiveCorrect(prev => prev + 1);
       setRoundTotalTime(prev => prev + timeTaken);
       setRoundBestTime(prev => prev === null ? timeTaken : Math.min(prev, timeTaken));
-      
+
       if (mode === 'compete') {
-        const delta = recordRound(true, timeTaken, difficulty);
+        const delta = recordRound(true, timeTaken, difficulty, mode);
         resolutionTimeoutRef.current = setTimeout(() => {
           navigation.replace('GameOver', {
             consecutiveCorrect: consecutiveCorrect + 1,
@@ -230,7 +259,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
           });
         }, 1500);
       } else {
-        recordRound(true, timeTaken, difficulty);
+        recordRound(true, timeTaken, difficulty, mode);
         resolutionTimeoutRef.current = setTimeout(() => {
           startRound();
         }, 1000);
@@ -250,7 +279,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       if (mode === 'compete') {
-        const delta = recordRound(false, null, difficulty);
+        const delta = recordRound(false, null, difficulty, mode);
         resolutionTimeoutRef.current = setTimeout(() => {
           navigation.replace('GameOver', {
             consecutiveCorrect,
@@ -281,8 +310,8 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleWatchAd = () => {
-    if (adLoaded) {
-      rewarded.show();
+    if (adLoaded && rewardedRef.current) {
+      rewardedRef.current.show();
     } else {
       setAdNotReadyVisible(true);
     }
@@ -304,10 +333,10 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     setQuitModalVisible(true);
   };
 
-  const backgroundColor = bgColorAnim.interpolate({
+  const backgroundColor = useMemo(() => bgColorAnim.interpolate({
     inputRange: [-1, 0, 1],
     outputRange: [COLORS.red, settings.backgroundHex, COLORS.green]
-  });
+  }), [bgColorAnim, settings.backgroundHex]);
 
   return (
     <Animated.View style={[styles.container, { backgroundColor }]}>
@@ -316,7 +345,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                <Text style={{ fontSize: 24, color: COLORS.textSecondary }}>←</Text>
+                <Text style={{ fontSize: ms(24), color: COLORS.textSecondary }}>{BACK_ARROW}</Text>
               </TouchableOpacity>
               <Text style={styles.headerText}>{mode.toUpperCase()} · {difficulty}</Text>
             </View>
@@ -344,7 +373,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
                   {inputValue}
                 </Text>
                 {parseInt(inputValue || '0') !== targetSum && (
-                  <Text style={{ ...TYPOGRAPHY.h1, color: COLORS.darkRed, fontSize: 80, marginTop: -10 }}>{targetSum}</Text>
+                  <Text style={{ ...TYPOGRAPHY.h1, color: COLORS.darkRed, fontSize: ms(80, 0.3), marginTop: -10 }}>{targetSum}</Text>
                 )}
               </View>
             )}
@@ -389,23 +418,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 10,
+    padding: ms(20),
+    paddingTop: scaleY(10),
     alignItems: 'center',
-    // flexDirection: 'row',
-    // alignItems: 'center',
-    // justifyContent: 'space-between',
-    // paddingHorizontal: 20,
-    // paddingTop: 40,
-    // paddingBottom: 5,
-    // borderBottomWidth: 1,
-    // borderBottomColor: COLORS.border,
   },
   backButton: {
-    fontSize: 24,
+    fontSize: ms(24),
     color: COLORS.black,
-    paddingBottom: 10,
-    paddingRight: 20,
+    paddingBottom: scaleY(10),
+    paddingRight: ms(20),
   },
   headerText: {
     ...TYPOGRAPHY.subtitle,
@@ -418,24 +439,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 250,
+    paddingBottom: scaleY(250),
   },
   countdownText: {
     ...TYPOGRAPHY.h1,
-    fontSize: 120,
+    fontSize: ms(120, 0.3),
   },
   startingInText: {
     ...TYPOGRAPHY.subtitle,
     color: COLORS.textSecondary,
-    marginBottom: -10,
+    marginBottom: scaleY(-10),
   },
   flashText: {
     ...TYPOGRAPHY.h1,
-    fontSize: 120,
+    fontSize: ms(120, 0.3),
   },
   inputText: {
     ...TYPOGRAPHY.h1,
-    fontSize: 80,
+    fontSize: ms(80, 0.3),
   },
   numpadContainer: {
     position: 'absolute',

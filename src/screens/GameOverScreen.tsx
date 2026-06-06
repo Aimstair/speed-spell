@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -9,13 +9,13 @@ import { useStore } from '../store/useStore';
 import { playClick } from '../utils/audio';
 import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { AdNotReadyModal } from '../components/AdNotReadyModal';
+import { ms, scaleY, isSmallDevice } from '../utils/scale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameOver'>;
 
 const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/4277287397';
-const rewarded = RewardedAd.createForAdRequest(adUnitId, {
-  requestNonPersonalizedAdsOnly: true,
-});
+
+const ARROW = '\u2192';
 
 export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
   const { consecutiveCorrect, mode, difficulty, roundTotalTime, roundBestTime, isWin, eloDelta } = route.params;
@@ -23,110 +23,117 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
   const [adLoaded, setAdLoaded] = useState(false);
   const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
   const [adError, setAdError] = useState<string | undefined>();
+  const rewardedRef = useRef<ReturnType<typeof RewardedAd.createForAdRequest> | null>(null);
+  const unsubscribersRef = useRef<(() => void)[]>([]);
+
+  const loadNewAd = useCallback(() => {
+    unsubscribersRef.current.forEach(unsub => unsub());
+    unsubscribersRef.current = [];
+
+    const ad = RewardedAd.createForAdRequest(adUnitId, {
+      requestNonPersonalizedAdsOnly: true,
+    });
+    rewardedRef.current = ad;
+    setAdLoaded(false);
+
+    const unsubs = [
+      ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+        setAdLoaded(true);
+      }),
+      ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+        addCompeteTry();
+      }),
+      ad.addAdEventListener(AdEventType.CLOSED, () => {
+        setAdLoaded(false);
+        loadNewAd();
+      }),
+      ad.addAdEventListener(AdEventType.ERROR, (error) => {
+        setAdError(error?.message || 'Unknown Ad Error');
+      }),
+    ];
+    unsubscribersRef.current = unsubs;
+
+    ad.load();
+  }, [addCompeteTry]);
 
   useEffect(() => {
-    const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      setAdLoaded(true);
-    });
-    const unsubscribeEarned = rewarded.addAdEventListener(
-      RewardedAdEventType.EARNED_REWARD,
-      () => {
-        addCompeteTry();
-      },
-    );
-    const unsubscribeClosed = rewarded.addAdEventListener(
-      AdEventType.CLOSED,
-      () => {
-        setAdLoaded(false);
-        rewarded.load();
-      }
-    );
-    const unsubscribeError = rewarded.addAdEventListener(
-      AdEventType.ERROR,
-      (error) => {
-        setAdError(error?.message || 'Unknown Ad Error');
-      }
-    );
-
-    rewarded.load();
-
+    loadNewAd();
     return () => {
-      unsubscribeLoaded();
-      unsubscribeEarned();
-      unsubscribeClosed();
-      unsubscribeError();
+      unsubscribersRef.current.forEach(unsub => unsub());
     };
-  }, [addCompeteTry]);
+  }, [loadNewAd]);
 
   const avgTime = consecutiveCorrect > 0 ? roundTotalTime / consecutiveCorrect : null;
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {mode === 'compete' ? (
-          <>
-            <Text style={styles.title}>YOU</Text>
-            <Text style={styles.title}>{isWin ? 'WON!' : 'LOST.'}</Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.title}>GAME</Text>
-            <Text style={styles.title}>OVER.</Text>
-          </>
-        )}
-        <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} · {difficulty}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
+        <View style={styles.content}>
+          {mode === 'compete' ? (
+            <>
+              <Text style={styles.title}>YOU</Text>
+              <Text style={styles.title}>{isWin ? 'WON!' : 'LOST.'}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>GAME</Text>
+              <Text style={styles.title}>OVER.</Text>
+            </>
+          )}
+          <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} \u00B7 {difficulty}</Text>
 
-        <View style={styles.separator} />
+          <View style={styles.separator} />
 
-        {mode === 'compete' ? (
-          <>
-            <Text style={styles.label}>TIME TAKEN</Text>
-            <Text style={[styles.score, { fontSize: 72, lineHeight: 80 }]}>{roundTotalTime ? roundTotalTime.toFixed(2) + 's' : '—'}</Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>ROUNDS COMPLETED</Text>
-            <Text style={styles.score}>{consecutiveCorrect}</Text>
-            <Text style={styles.subtext}>consecutive correct answers</Text>
-          </>
-        )}
+          {mode === 'compete' ? (
+            <>
+              <Text style={styles.label}>TIME TAKEN</Text>
+              <Text style={styles.scoreCompete}>{roundTotalTime ? roundTotalTime.toFixed(2) + 's' : '\u2014'}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>ROUNDS COMPLETED</Text>
+              <Text style={styles.score}>{consecutiveCorrect}</Text>
+              <Text style={styles.subtext}>consecutive correct answers</Text>
+            </>
+          )}
 
-        <View style={styles.separator} />
+          <View style={styles.separator} />
 
-        {mode === 'compete' ? (
-          <View style={styles.statsRow}>
-            <View style={styles.statBoxLeft}>
-              <Text style={styles.statLabel}>ELO CHANGE</Text>
-              <Text style={styles.statValue}>
-                {eloDelta !== undefined && eloDelta > 0 ? `+${eloDelta}` : eloDelta}
-              </Text>
+          {mode === 'compete' ? (
+            <View style={styles.statsRow}>
+              <View style={styles.statBoxLeft}>
+                <Text style={styles.statLabel}>ELO CHANGE</Text>
+                <Text style={styles.statValue}>
+                  {eloDelta !== undefined && eloDelta > 0 ? `+${eloDelta}` : eloDelta}
+                </Text>
+              </View>
+              <View style={styles.statBoxRight}>
+                <Text style={styles.statLabel}>NEW ELO</Text>
+                <Text style={styles.statValue}>{elo}</Text>
+              </View>
             </View>
-            <View style={styles.statBoxRight}>
-              <Text style={styles.statLabel}>NEW ELO</Text>
-              <Text style={styles.statValue}>{elo}</Text>
+          ) : (
+            <View style={styles.statsRow}>
+              <View style={styles.statBoxLeft}>
+                <Text style={styles.statLabel}>AVG TIME</Text>
+                {avgTime ? (
+                  <Text style={styles.statValue}>{avgTime.toFixed(2)}s</Text>
+                ) : (
+                  <View style={styles.dash} />
+                )}
+              </View>
+              <View style={styles.statBoxRight}>
+                <Text style={styles.statLabel}>BEST TIME</Text>
+                {roundBestTime ? (
+                  <Text style={styles.statValue}>{roundBestTime.toFixed(2)}s</Text>
+                ) : (
+                  <View style={styles.dash} />
+                )}
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.statsRow}>
-            <View style={styles.statBoxLeft}>
-              <Text style={styles.statLabel}>AVG TIME</Text>
-              {avgTime ? (
-                <Text style={styles.statValue}>{avgTime.toFixed(2)}s</Text>
-              ) : (
-                <View style={styles.dash} />
-              )}
-            </View>
-            <View style={styles.statBoxRight}>
-              <Text style={styles.statLabel}>BEST TIME</Text>
-              {roundBestTime ? (
-                <Text style={styles.statValue}>{roundBestTime.toFixed(2)}s</Text>
-              ) : (
-                <View style={styles.dash} />
-              )}
-            </View>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -134,7 +141,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
           onPress={() => { playClick(settings.sfx); navigation.replace('MainMenu'); }}
         >
           <Text style={styles.buttonTitle}>MAIN MENU</Text>
-          <Text style={styles.arrow}>→</Text>
+          <Text style={styles.arrow}>{ARROW}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -142,8 +149,8 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
           onPress={() => {
             playClick(settings.sfx);
             if (mode === 'compete' && competeTries === 0) {
-              if (adLoaded) {
-                rewarded.show();
+              if (adLoaded && rewardedRef.current) {
+                rewardedRef.current.show();
               } else {
                 setAdNotReadyVisible(true);
               }
@@ -159,7 +166,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.buttonTitle}>
             {mode === 'compete' && competeTries === 0 ? 'WATCH AD FOR 1 TRY' : 'PLAY AGAIN'}
           </Text>
-          <Text style={styles.arrow}>→</Text>
+          <Text style={styles.arrow}>{ARROW}</Text>
         </TouchableOpacity>
       </View>
 
@@ -177,36 +184,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    padding: ms(20),
+    paddingTop: isSmallDevice ? scaleY(30) : scaleY(60),
+    paddingBottom: scaleY(20),
   },
   title: {
     ...TYPOGRAPHY.h1,
     color: COLORS.black,
-    lineHeight: 70,
+    lineHeight: ms(70, 0.3),
   },
   subtitle: {
     ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    marginTop: 10,
+    marginTop: scaleY(10),
     fontWeight: '700',
   },
   separator: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginVertical: 30,
+    marginVertical: isSmallDevice ? scaleY(20) : scaleY(30),
   },
   label: {
     ...TYPOGRAPHY.subtitle,
-    marginBottom: 10,
+    marginBottom: scaleY(10),
   },
   score: {
     ...TYPOGRAPHY.h1,
-    fontSize: 96,
-    lineHeight: 96,
+    fontSize: ms(96, 0.3),
+    lineHeight: ms(96, 0.3),
+  },
+  scoreCompete: {
+    ...TYPOGRAPHY.h1,
+    fontSize: ms(72, 0.3),
+    lineHeight: ms(80, 0.3),
   },
   subtext: {
     ...TYPOGRAPHY.body,
@@ -217,14 +232,14 @@ const styles = StyleSheet.create({
   },
   statBoxLeft: {
     flex: 1,
-    paddingRight: 20,
+    paddingRight: ms(20),
     borderRightWidth: 1,
     borderColor: COLORS.border,
   },
   statBoxRight: {
     flex: 1,
-    paddingRight: 20,
-    paddingLeft: 20,
+    paddingRight: ms(20),
+    paddingLeft: ms(20),
   },
   statLabel: {
     ...TYPOGRAPHY.subtitle,
@@ -242,14 +257,14 @@ const styles = StyleSheet.create({
   },
   footer: {
     justifyContent: 'flex-end',
-    padding: 20,
-    paddingBottom: 10,
+    padding: ms(20),
+    paddingBottom: scaleY(10),
   },
   button: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 25,
+    padding: ms(22),
   },
   buttonTitle: {
     ...TYPOGRAPHY.button,

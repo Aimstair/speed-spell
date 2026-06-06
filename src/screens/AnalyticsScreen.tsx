@@ -7,6 +7,9 @@ import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { playClick } from '../utils/audio';
+import { ms, scaleY, isSmallDevice } from '../utils/scale';
+
+const BACK_ARROW = '\u2190';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Analytics'>;
 
@@ -19,7 +22,7 @@ export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => { playClick(settings.sfx); navigation.goBack(); }}>
-          <Text style={styles.backButton}>←</Text>
+          <Text style={styles.backButton}>{BACK_ARROW}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ANALYTICS</Text>
         <View style={{ width: 24 }} />
@@ -99,43 +102,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 5,
+    paddingHorizontal: ms(20),
+    paddingTop: scaleY(10),
+    paddingBottom: scaleY(5),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   backBtn: {
-    paddingRight: 20,
+    paddingRight: ms(20),
   },
   backButton: {
-    fontSize: 24,
+    fontSize: ms(24),
     color: COLORS.black,
-    paddingBottom: 10,
+    paddingBottom: scaleY(10),
   },
   headerTitle: {
     ...TYPOGRAPHY.subtitle,
     flex: 1,
   },
   scoreSection: {
-    padding: 20,
-    paddingTop: 40,
+    padding: ms(20),
+    paddingTop: isSmallDevice ? scaleY(25) : scaleY(40),
   },
   sectionLabel: {
     ...TYPOGRAPHY.subtitle,
     color: COLORS.textSecondary,
-    marginBottom: 10,
+    marginBottom: scaleY(10),
   },
   scoreValue: {
     ...TYPOGRAPHY.h1,
-    fontSize: 96,
-    lineHeight: 96,
+    fontSize: ms(96, 0.3),
+    lineHeight: ms(96, 0.3),
     color: COLORS.black,
   },
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: scaleY(10),
     gap: 10,
   },
   line: {
@@ -147,7 +150,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.subtitle,
   },
   statsContainer: {
-    padding: 20,
+    padding: ms(20),
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: COLORS.border,
@@ -156,7 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: scaleY(15),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border + '55',
   },
@@ -167,15 +170,15 @@ const styles = StyleSheet.create({
   },
   diffStats: {
     flexDirection: 'row',
-    gap: 20,
+    gap: ms(20),
   },
   statBox: {
     alignItems: 'flex-end',
-    width: 60,
+    width: ms(60),
   },
   statBoxLabel: {
     ...TYPOGRAPHY.body,
-    fontSize: 10,
+    fontSize: ms(10, 0.3),
     color: COLORS.textSecondary,
     marginBottom: 4,
   },
@@ -184,7 +187,7 @@ const styles = StyleSheet.create({
     color: COLORS.black,
   },
   recentSection: {
-    padding: 20,
+    padding: ms(20),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
@@ -192,7 +195,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: scaleY(15),
   },
   recentCount: {
     ...TYPOGRAPHY.subtitle,
@@ -203,8 +206,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   block: {
-    width: 15,
-    height: 15,
+    width: ms(15),
+    height: ms(15),
     marginBottom: 5,
   },
   noDataText: {
@@ -212,7 +215,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   resetButton: {
-    padding: 20,
+    padding: ms(20),
     marginTop: 5,
   },
   resetText: {

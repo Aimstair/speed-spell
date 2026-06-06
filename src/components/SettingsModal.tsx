@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                 }}
               >
                 <Text style={styles.label}>Privacy Policy</Text>
-                <Text style={styles.arrow}>→</Text>
+                <Text style={styles.arrow}>{'\u2192'}</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

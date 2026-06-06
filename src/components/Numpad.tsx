@@ -1,15 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useAudioPlayer } from 'expo-audio';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
 import { useStore } from '../store/useStore';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
+import { ms, scaleY, SCREEN_WIDTH } from '../utils/scale';
+import { typePlayer } from '../utils/audio';
 
-const { width } = Dimensions.get('window');
-const PADDING = 20;
-const BUTTON_SIZE = (width - PADDING * 2 - 20) / 3;
-
-const typeSource = require('../../assets/Sounds/Type.mp3');
+const PADDING = ms(20);
+const BUTTON_SIZE = (SCREEN_WIDTH - PADDING * 2 - ms(20)) / 3;
 
 interface NumpadProps {
   onPress: (val: string) => void;
@@ -19,26 +17,29 @@ interface NumpadProps {
 
 export const Numpad: React.FC<NumpadProps> = ({ onPress, onClear, onSubmit }) => {
   const { settings } = useStore();
-  const typePlayer = useAudioPlayer(typeSource);
 
   const handlePress = (num: string) => {
-    if (settings.sfx && typePlayer) {
-      try {
-        typePlayer.seekTo(0);
-        typePlayer.play();
-      } catch (e) {}
-    }
     onPress(num);
+    if (settings.sfx && typePlayer) {
+      setTimeout(() => {
+        try {
+          typePlayer.seekTo(0);
+          typePlayer.play();
+        } catch (e) {}
+      }, 0);
+    }
   };
 
   const handleClear = () => {
-    if (settings.sfx && typePlayer) {
-      try {
-        typePlayer.seekTo(0);
-        typePlayer.play();
-      } catch (e) {}
-    }
     onClear();
+    if (settings.sfx && typePlayer) {
+      setTimeout(() => {
+        try {
+          typePlayer.seekTo(0);
+          typePlayer.play();
+        } catch (e) {}
+      }, 0);
+    }
   };
 
   const rows = [
@@ -77,12 +78,12 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     padding: PADDING,
-    gap: 10,
-    backgroundColor: COLORS.background, // Match screen background instead of black for cleaner look, wait I'll use black because it "slides up" and looks cool as a distinct area, or maybe off-white? Let's use #E0E0E0
+    gap: scaleY(8),
+    backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingTop: scaleY(16),
+    paddingBottom: scaleY(30),
     elevation: 20,
     shadowColor: '#000',
     shadowOpacity: 0.1,
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: BUTTON_SIZE,
-    height: BUTTON_SIZE * 0.7,
+    height: BUTTON_SIZE * 0.65,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',

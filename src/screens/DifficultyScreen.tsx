@@ -7,8 +7,12 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { useStore } from '../store/useStore';
 import { playClick } from '../utils/audio';
+import { ms, scaleY, isSmallDevice } from '../utils/scale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Difficulty'>;
+
+const ARROW = '\u2192';
+const BACK_ARROW = '\u2190';
 
 const DIFFICULTIES = [
   { id: 'Beginner', num: '01', details: '5 numbers    1 digit    1.0s flicker' },
@@ -26,7 +30,7 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => { playClick(settings.sfx); navigation.goBack(); }}>
-          <Text style={styles.backButton}>←</Text>
+          <Text style={styles.backButton}>{BACK_ARROW}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>DIFFICULTY</Text>
         <View style={[styles.modeBadge, { backgroundColor: isTrain ? COLORS.train : COLORS.compete }]}>
@@ -38,7 +42,7 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
         <Text style={styles.title}>SELECT</Text>
         <Text style={styles.title}>LEVEL.</Text>
         <Text style={styles.subtitle}>
-          {isTrain ? 'Train mode — practice freely, no score impact.' : 'Ranked mode — ELO changes applied.'}
+          {isTrain ? 'Train mode \u2014 practice freely, no score impact.' : 'Ranked mode \u2014 ELO changes applied.'}
         </Text>
       </View>
 
@@ -67,7 +71,7 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
               <Text style={styles.cardDetails}>{diff.details}</Text>
             </View>
             <View style={styles.cardRight}>
-              <Text style={styles.arrow}>→</Text>
+              <Text style={styles.arrow}>{ARROW}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -85,46 +89,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 5,
+    paddingHorizontal: ms(20),
+    paddingTop: scaleY(10),
+    paddingBottom: scaleY(5),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   backBtn: {
-    paddingRight: 20,
+    paddingRight: ms(20),
   },
   backButton: {
-    fontSize: 24,
+    fontSize: ms(24),
     color: COLORS.black,
-    paddingBottom: 10,
+    paddingBottom: scaleY(10),
   },
   headerTitle: {
     ...TYPOGRAPHY.subtitle,
     flex: 1,
   },
   modeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: ms(12),
+    paddingVertical: scaleY(4),
   },
   modeText: {
     ...TYPOGRAPHY.button,
-    fontSize: 12,
+    fontSize: ms(12, 0.3),
     color: COLORS.black,
   },
   titleContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 40,
+    paddingHorizontal: ms(20),
+    paddingVertical: isSmallDevice ? scaleY(25) : scaleY(40),
   },
   title: {
     ...TYPOGRAPHY.h1,
     color: COLORS.black,
-    lineHeight: 70,
+    lineHeight: ms(70, 0.3),
   },
   subtitle: {
     ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    marginTop: 15,
+    marginTop: scaleY(15),
   },
   list: {
     flex: 1,
@@ -132,13 +136,13 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 25,
-    paddingHorizontal: 20,
+    paddingVertical: scaleY(25),
+    paddingHorizontal: ms(20),
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
   cardLeft: {
-    width: 40,
+    width: ms(40),
   },
   cardNum: {
     ...TYPOGRAPHY.subtitle,
@@ -158,7 +162,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   cardRight: {
-    width: 40,
+    width: ms(40),
     alignItems: 'flex-end',
   },
   arrow: {
