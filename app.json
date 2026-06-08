@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "SpeedMath",
+    "name": "Speed Spell",
     "slug": "speed-math",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,8 +26,8 @@
         "foregroundImage": "./assets/icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aimteralabs.speedmath",
-      "versionCode": 3,
+      "package": "com.aimteralabs.speedspellgame",
+      "versionCode": 1,
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -42,8 +42,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-8621446085621887~2667480801",
-          "iosAppId": "ca-app-pub-8621446085621887~2667480801"
+          "androidAppId": "ca-app-pub-8621446085621887~4529843924",
+          "iosAppId": "ca-app-pub-8621446085621887~4529843924"
         }
       ],
       "expo-audio"

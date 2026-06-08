@@ -75,7 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onClose }
                 style={styles.row}
                 onPress={() => {
                   playClick(settings.sfx);
-                  Linking.openURL('https://aimstair.app/speedmath/privacy');
+                  Linking.openURL('https://aimstair.app/speedspell/privacy');
                 }}
               >
                 <Text style={styles.label}>Privacy Policy</Text>

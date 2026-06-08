@@ -15,10 +15,10 @@ const ARROW = '\u2192';
 const BACK_ARROW = '\u2190';
 
 const DIFFICULTIES = [
-  { id: 'Beginner', num: '01', details: '5 numbers    1 digit    1.0s flicker' },
-  { id: 'Intermediate', num: '02', details: '5 numbers    2 digits    1.0s flicker' },
-  { id: 'Expert', num: '03', details: '8 numbers    3 digits    0.8s flicker' },
-  { id: 'Olympiad', num: '04', details: '10 numbers    4 digits    0.5s flicker' },
+  { id: 'Beginner', num: '01', details: '3-5 letters · Anagram Mode · 30s timer' },
+  { id: 'Intermediate', num: '02', details: '6-8 letters · QWERTY Mode · 25s timer' },
+  { id: 'Expert', num: '03', details: '9-12 letters · Complex rules · 20s timer' },
+  { id: 'Olympiad', num: '04', details: 'Obscure words · Definitions · 15s timer' },
 ];
 
 export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {

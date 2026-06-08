@@ -16,19 +16,19 @@ interface TutorialModalProps {
 const STEPS = [
   {
     title: 'WELCOME',
-    content: 'Welcome to Speed Math!\n\nThis game is designed to test and improve your mental calculation speed.',
+    content: 'Welcome to Speed Spell!\n\nThis game is designed to test and expand your vocabulary and spelling skills.',
   },
   {
-    title: 'THE MECHANICS',
-    content: 'Numbers will flash on the screen quickly.\n\nAdd them up in your head as fast as you can!',
+    title: 'THE DICTATION',
+    content: 'A voice will read out a word.\n\nListen carefully, then type the correct spelling before the timer runs out!',
   },
   {
-    title: 'THE INPUT',
-    content: 'When the flashing stops, a question mark will appear.\n\nType the total sum using the numpad and hit ENT.',
+    title: 'LIFELINES',
+    content: 'Stuck on a tricky word?\n\nYou have 3 lifelines per game: Definition, Origin, and Sentence. Tap them for hints!',
   },
   {
     title: 'THE MODES',
-    content: 'TRAIN mode is for endless practice.\n\nCOMPETE mode is a 1-round daily challenge that builds your Cognitive Score (ELO).',
+    content: 'TRAIN mode is for endless practice.\n\nCOMPETE mode is a ranked challenge that builds your Linguistic ELO.',
   }
 ];
 
@@ -37,18 +37,14 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ visible }) => {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
 
-  // For Step 1 (Flashing numbers)
-  const [flashNum, setFlashNum] = useState<number | string>(14);
+  const [speakerOp, setSpeakerOp] = useState(1);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (step === 1 && visible) {
-      const numbers = [14, 5, 21, 8, '?'];
-      let idx = 0;
       interval = setInterval(() => {
-        idx = (idx + 1) % numbers.length;
-        setFlashNum(numbers[idx]);
-      }, 600);
+        setSpeakerOp(prev => prev === 1 ? 0.3 : 1);
+      }, 500);
     }
     return () => clearInterval(interval);
   }, [step, visible]);
@@ -73,33 +69,28 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ visible }) => {
           <View style={styles.visualBox}>
             <View style={styles.logoBox}>
               <Text style={{ ...TYPOGRAPHY.h1, fontSize: ms(24) }}>SPEED</Text>
-              <Text style={{ ...TYPOGRAPHY.h1, fontSize: ms(24) }}>MATH</Text>
+              <Text style={{ ...TYPOGRAPHY.h1, fontSize: ms(24), color: COLORS.train }}>SPELL</Text>
             </View>
-            <View style={styles.floatingSymbol1}><Text style={styles.symbolText}>+</Text></View>
-            <View style={styles.floatingSymbol2}><Text style={styles.symbolText}>=</Text></View>
-            <View style={styles.floatingSymbol3}><Text style={styles.symbolText}>x</Text></View>
+            <View style={styles.floatingSymbol1}><Text style={styles.symbolText}>A</Text></View>
+            <View style={styles.floatingSymbol2}><Text style={styles.symbolText}>Z</Text></View>
+            <View style={styles.floatingSymbol3}><Text style={styles.symbolText}>Q</Text></View>
           </View>
         );
       case 1:
         return (
           <View style={styles.visualBox}>
             <View style={styles.gameScreenMock}>
-              <Text style={styles.flashMockText}>{flashNum}</Text>
+              <Text style={[styles.flashMockText, { opacity: speakerOp }]}>🔊</Text>
             </View>
           </View>
         );
       case 2:
         return (
           <View style={styles.visualBox}>
-            <View style={styles.numpadMock}>
-              <Text style={styles.inputMockText}>40</Text>
-              <View style={styles.numpadGrid}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'ENT'].map((k, i) => (
-                  <View key={i} style={[styles.numpadKey, k === 'ENT' && { backgroundColor: COLORS.black }]}>
-                    <Text style={[styles.numpadKeyText, k === 'ENT' && { color: COLORS.white }]}>{k}</Text>
-                  </View>
-                ))}
-              </View>
+            <View style={styles.lifelineRow}>
+              <View style={styles.lifelineMock}><Text style={styles.lifelineIcon}>📖</Text></View>
+              <View style={styles.lifelineMock}><Text style={styles.lifelineIcon}>🌍</Text></View>
+              <View style={styles.lifelineMock}><Text style={styles.lifelineIcon}>💬</Text></View>
             </View>
           </View>
         );
@@ -243,7 +234,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     backgroundColor: COLORS.white,
-    borderRadius: 10,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -254,40 +245,30 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   flashMockText: {
-    ...TYPOGRAPHY.h1,
-    fontSize: ms(40),
+    fontSize: ms(50),
   },
 
   // Slide 3 Visuals
-  numpadMock: {
-    width: 140,
-    alignItems: 'center',
-  },
-  inputMockText: {
-    ...TYPOGRAPHY.h2,
-    fontSize: ms(24),
-    marginBottom: ms(10),
-    letterSpacing: 2,
-  },
-  numpadGrid: {
+  lifelineRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: ms(4),
-    justifyContent: 'center',
+    gap: ms(15),
   },
-  numpadKey: {
-    width: ms(35),
-    height: ms(30),
+  lifelineMock: {
+    width: ms(60),
+    height: ms(50),
     backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  numpadKeyText: {
-    ...TYPOGRAPHY.button,
-    fontSize: ms(12),
+  lifelineIcon: {
+    fontSize: ms(24),
   },
 
   // Slide 4 Visuals

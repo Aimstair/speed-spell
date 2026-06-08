@@ -16,7 +16,7 @@ import { ms, scaleY, isSmallDevice } from '../utils/scale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 
-const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/4277287397';
+const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/9691660948';
 
 const ARROW = '\u2192'; // Unicode right arrow
 
@@ -78,16 +78,16 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.header}>
-          {/* <Text style={styles.headerText}>SPEED MATH</Text>
-          <Text style={styles.eloText}><Text style={styles.eloBold}>{elo}</Text> ELO</Text> */}
+          {/* <Text style={styles.headerText}>SPEED SPELL</Text> */}
+          {/* <Text style={styles.eloText}><Text style={styles.eloBold}>{elo}</Text> ELO</Text> */}
         </View>
 
         <View style={styles.titleContainer}>
           <Text style={styles.title}>SPEED</Text>
-          <Text style={styles.title}>MATH.</Text>
+          <Text style={styles.title}>SPELL.</Text>
           <View style={styles.subtitleRow}>
             <View style={styles.line} />
-            <Text style={styles.subtitle}>MENTAL ARITHMETIC TRAINING</Text>
+            <Text style={styles.subtitle}>SPELLING BEE TRAINING</Text>
           </View>
         </View>
 

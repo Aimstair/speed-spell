@@ -1,11 +1,12 @@
 import { createAudioPlayer } from 'expo-audio';
 
 export const SOUND_VOLUMES = {
-  beep: 0.3,
+  beep: 5.0,
   correct: 0.8,
   wrong: 1.0,
   tick: 1.0,
   click: 1.0,
+  type: 0.25,
 };
 
 const clickSource = require('../../assets/Sounds/Click.mp3');
@@ -24,7 +25,7 @@ export const typePlayer = createAudioPlayer(typeSource);
 
 const playedOnce: Record<string, boolean> = {};
 
-export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'click', sfxEnabled: boolean) => {
+export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'click' | 'type', sfxEnabled: boolean) => {
   if (!sfxEnabled) return;
   try {
     let player;
@@ -33,6 +34,7 @@ export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'c
     else if (type === 'wrong') player = wrongPlayer;
     else if (type === 'tick') player = tickPlayer;
     else if (type === 'click') player = clickPlayer;
+    else if (type === 'type') player = typePlayer;
 
     if (player) {
       player.volume = SOUND_VOLUMES[type];
@@ -48,3 +50,4 @@ export const playSoundEffect = (type: 'beep' | 'correct' | 'wrong' | 'tick' | 'c
 };
 
 export const playClick = (sfxEnabled: boolean) => playSoundEffect('click', sfxEnabled);
+export const playType = (sfxEnabled: boolean) => playSoundEffect('type', sfxEnabled);

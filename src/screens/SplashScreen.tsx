@@ -93,11 +93,11 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Floating Math Symbols */}
-      <Animated.Text style={[styles.symbol, { top: height * 0.15, left: width * 0.15 }, getSymbolStyle(symbol1Anim, '-15deg')]}>+</Animated.Text>
-      <Animated.Text style={[styles.symbol, { top: height * 0.2, right: width * 0.15 }, getSymbolStyle(symbol2Anim, '20deg')]}>-</Animated.Text>
-      <Animated.Text style={[styles.symbol, { bottom: height * 0.2, left: width * 0.2 }, getSymbolStyle(symbol3Anim, '10deg')]}>×</Animated.Text>
-      <Animated.Text style={[styles.symbol, { bottom: height * 0.15, right: width * 0.2 }, getSymbolStyle(symbol4Anim, '-25deg')]}>÷</Animated.Text>
+      {/* Floating Letters */}
+      <Animated.Text style={[styles.symbol, { top: height * 0.15, left: width * 0.15 }, getSymbolStyle(symbol1Anim, '-15deg')]}>A</Animated.Text>
+      <Animated.Text style={[styles.symbol, { top: height * 0.2, right: width * 0.15 }, getSymbolStyle(symbol2Anim, '20deg')]}>B</Animated.Text>
+      <Animated.Text style={[styles.symbol, { bottom: height * 0.2, left: width * 0.2 }, getSymbolStyle(symbol3Anim, '10deg')]}>C</Animated.Text>
+      <Animated.Text style={[styles.symbol, { bottom: height * 0.15, right: width * 0.2 }, getSymbolStyle(symbol4Anim, '-25deg')]}>Z</Animated.Text>
 
       <Animated.View 
         style={[
@@ -112,11 +112,11 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
         ]}
       >
         <Text style={styles.titleSpeed}>SPEED</Text>
-        <Text style={styles.titleMath}>MATH</Text>
+        <Text style={styles.titleSpell}>SPELL</Text>
         
         <View style={styles.divider} />
         
-        <Text style={styles.tagline}>SHARPEN YOUR MIND</Text>
+        <Text style={styles.tagline}>EXPAND YOUR VOCABULARY</Text>
       </Animated.View>
     </View>
   );
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     lineHeight: 70,
   },
-  titleMath: {
+  titleSpell: {
     ...TYPOGRAPHY.h1,
     color: COLORS.train, // Pastel blue
     lineHeight: 70,

@@ -13,7 +13,7 @@ import { ms, scaleY, isSmallDevice } from '../utils/scale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameOver'>;
 
-const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/4277287397';
+const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/9691660948';
 
 const ARROW = '\u2192';
 
@@ -80,7 +80,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
               <Text style={styles.title}>OVER.</Text>
             </>
           )}
-          <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} \u00B7 {difficulty}</Text>
+          <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} · {difficulty}</Text>
 
           <View style={styles.separator} />
 
@@ -93,7 +93,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
             <>
               <Text style={styles.label}>ROUNDS COMPLETED</Text>
               <Text style={styles.score}>{consecutiveCorrect}</Text>
-              <Text style={styles.subtext}>consecutive correct answers</Text>
+              <Text style={styles.subtext}>words spelled correctly</Text>
             </>
           )}
 

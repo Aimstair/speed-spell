@@ -39,7 +39,7 @@ export const scheduleRetentionNotifications = async () => {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Time to Train! 🧠",
-      body: "Keep your mind sharp. Jump in for a quick Speed Math session!",
+      body: "Expand your vocabulary. Jump in for a quick Speed Spell session!",
       sound: true,
     },
     trigger: {

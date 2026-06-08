@@ -19,6 +19,7 @@ export interface DifficultyStats {
   bestTime: number | null;
   totalTime: number;
   correctCount: number;
+  totalAttempts: number;
 }
 
 export interface AppState {
@@ -35,15 +36,21 @@ export interface AppState {
   lastCompeteDate: string;
   hasSeenTutorial: boolean;
 
+  highestStreak: number;
+  lifelinesUsed: { define: number; origin: number; sentence: number };
+  wordsMastered: string[];
+
   // Actions
   updateElo: (amount: number) => void;
-  recordRound: (isCorrect: boolean, timeInSeconds: number | null, difficultyCleared?: string, mode?: 'train' | 'compete') => number;
+  recordRound: (isCorrect: boolean, timeInSeconds: number | null, difficultyCleared?: string, mode?: 'train' | 'compete', word?: string) => number;
   updateSettings: (settings: Partial<GameSettings>) => void;
   resetStatistics: () => void;
   syncDailyTries: () => void;
   consumeCompeteTry: () => boolean;
   addCompeteTry: () => void;
   completeTutorial: () => void;
+  recordLifelineUsage: (type: 'define' | 'origin' | 'sentence') => void;
+  updateHighestStreak: (streak: number) => void;
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -66,10 +73,13 @@ export const useStore = create<AppState>()(
       competeTries: 5,
       lastCompeteDate: getLocalTodayString(),
       hasSeenTutorial: false,
+      highestStreak: 0,
+      lifelinesUsed: { define: 0, origin: 0, sentence: 0 },
+      wordsMastered: [],
 
       updateElo: (amount) => set((state) => ({ elo: Math.max(0, state.elo + amount) })),
 
-      recordRound: (isCorrect, timeInSeconds, difficultyCleared, mode) => {
+      recordRound: (isCorrect, timeInSeconds, difficultyCleared, mode, word) => {
         if (mode !== 'compete') return 0;
         
         let finalEloDelta = 0;
@@ -78,26 +88,35 @@ export const useStore = create<AppState>()(
           const newCorrectAnswers = state.correctAnswers + (isCorrect ? 1 : 0);
           const newAccuracy = Math.round((newCorrectAnswers / newRoundsPlayed) * 100);
 
-          const newRecentRounds = [...state.recentRounds, isCorrect].slice(-20); // Keep last 20
+          const newRecentRounds = [...state.recentRounds, isCorrect].slice(-50); // Keep last 50
 
           const newStatsByDifficulty = { ...state.statsByDifficulty };
+          const newWordsMastered = [...state.wordsMastered];
 
-          if (isCorrect && difficultyCleared && timeInSeconds !== null) {
+          if (isCorrect && word && !newWordsMastered.includes(word)) {
+            newWordsMastered.push(word);
+          }
+
+          if (difficultyCleared) {
             const currentStats = newStatsByDifficulty[difficultyCleared] || {
               bestTime: null,
               totalTime: 0,
-              correctCount: 0
+              correctCount: 0,
+              totalAttempts: 0
             };
 
             let newBest = currentStats.bestTime;
-            if (newBest === null || timeInSeconds < newBest) {
-              newBest = timeInSeconds;
+            if (isCorrect && timeInSeconds !== null) {
+              if (newBest === null || timeInSeconds < newBest) {
+                newBest = timeInSeconds;
+              }
             }
 
             newStatsByDifficulty[difficultyCleared] = {
               bestTime: newBest,
-              totalTime: currentStats.totalTime + timeInSeconds,
-              correctCount: currentStats.correctCount + 1
+              totalTime: currentStats.totalTime + (isCorrect && timeInSeconds ? timeInSeconds : 0),
+              correctCount: currentStats.correctCount + (isCorrect ? 1 : 0),
+              totalAttempts: currentStats.totalAttempts + 1
             };
           }
 
@@ -121,6 +140,7 @@ export const useStore = create<AppState>()(
             recentRounds: newRecentRounds,
             statsByDifficulty: newStatsByDifficulty,
             highestDifficultyCleared: (isCorrect && difficultyCleared) ? difficultyCleared : state.highestDifficultyCleared,
+            wordsMastered: newWordsMastered,
           };
         });
         return finalEloDelta;
@@ -139,6 +159,9 @@ export const useStore = create<AppState>()(
         recentRounds: [],
         statsByDifficulty: {},
         hasSeenTutorial: false,
+        highestStreak: 0,
+        lifelinesUsed: { define: 0, origin: 0, sentence: 0 },
+        wordsMastered: [],
       }),
 
       syncDailyTries: () => set((state) => {
@@ -178,9 +201,15 @@ export const useStore = create<AppState>()(
 
       addCompeteTry: () => set((state) => ({ competeTries: state.competeTries + 1 })),
       completeTutorial: () => set({ hasSeenTutorial: true }),
+      recordLifelineUsage: (type) => set((state) => ({
+        lifelinesUsed: { ...state.lifelinesUsed, [type]: state.lifelinesUsed[type] + 1 }
+      })),
+      updateHighestStreak: (streak) => set((state) => ({
+        highestStreak: Math.max(state.highestStreak, streak)
+      })),
     }),
     {
-      name: 'speed-math-storage',
+      name: 'speed-spell-storage',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )
