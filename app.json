@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Speed Spell",
-    "slug": "speed-math",
+    "slug": "speed-spell",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,7 +26,7 @@
         "foregroundImage": "./assets/icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aimteralabs.speedspellgame",
+      "package": "com.aimteralabs.speedspell",
       "versionCode": 1,
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -50,7 +50,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "420d50fc-0927-4ea8-9066-014b55044c46"
+        "projectId": "1b6fa3e9-4730-4b1e-9550-7de1c08e704b"
       }
     }
   }
