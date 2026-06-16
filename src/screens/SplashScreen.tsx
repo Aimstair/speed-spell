@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, Animated, Dimensions } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as Speech from 'expo-speech';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
@@ -23,6 +24,9 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const symbol4Anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Warm up the speech engine to prevent delay on first use
+    Speech.speak('', { volume: 0 });
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,

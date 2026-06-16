@@ -221,8 +221,8 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     setPhase('DICTATION');
     Speech.stop();
     Speech.speak(word.toLowerCase(), {
-      language: 'en',
-      rate: 0.9,
+      language: 'en-US',
+      rate: 0.75,
       onDone: () => {
         startInput();
       },
@@ -237,7 +237,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     const penalty = difficulty === 'Olympiad' ? 4 : 2;
     setPenaltySeconds(prev => prev + penalty);
     Speech.stop();
-    Speech.speak(targetWord.toLowerCase(), { language: 'en', rate: 0.9 });
+    Speech.speak(targetWord.toLowerCase(), { language: 'en-US', rate: 1 });
   };
 
   const startInput = () => {
@@ -374,7 +374,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
 
     setUsedThisWord(prev => new Set(prev).add(type));
     setLifelinesRemaining(prev => prev - 1);
-    
+
     const store = useStore.getState();
     if (store.recordLifelineUsage) store.recordLifelineUsage(type);
 
@@ -400,7 +400,7 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
     if (spokenText) {
       Speech.stop();
       const sanitizedSpeech = spokenText.replace(/___+/g, 'blank');
-      Speech.speak(sanitizedSpeech, { language: 'en', rate: 0.95 });
+      Speech.speak(sanitizedSpeech, { language: 'en-US', rate: 0.85 });
     }
 
     if (settings.sfx) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -468,7 +468,9 @@ export const GameScreen: React.FC<Props> = ({ route, navigation }) => {
               </TouchableOpacity>
               <Text style={styles.headerText}>{mode.toUpperCase()} · {difficulty}</Text>
             </View>
-            <Text style={styles.streakText}>STREAK: {consecutiveCorrect}</Text>
+            {mode !== 'compete' && (
+              <Text style={styles.streakText}>STREAK: {consecutiveCorrect}</Text>
+            )}
           </View>
 
           {/* ── Toolbar: lifelines + repeat + counter (INPUT phase only) ── */}
