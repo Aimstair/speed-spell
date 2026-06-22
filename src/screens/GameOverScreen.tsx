@@ -10,6 +10,7 @@ import { playClick } from '../utils/audio';
 import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { AdNotReadyModal } from '../components/AdNotReadyModal';
 import { ms, scaleY, isSmallDevice } from '../utils/scale';
+import { getTierForElo } from '../utils/tiers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GameOver'>;
 
@@ -18,8 +19,9 @@ const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/96916
 const ARROW = '\u2192';
 
 export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { consecutiveCorrect, mode, difficulty, roundTotalTime, roundBestTime, isWin, eloDelta } = route.params;
-  const { settings, elo, competeTries, consumeCompeteTry, addCompeteTry } = useStore();
+  const { consecutiveCorrect, mode, difficulty, roundTotalTime, roundBestTime, isWin, eloDelta, winner, blitzScore, themeName, dailyWords, customListId } = route.params;
+  const { settings, elo, updateElo } = useStore();
+  const [hasDoubledElo, setHasDoubledElo] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
   const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
   const [adError, setAdError] = useState<string | undefined>();
@@ -41,7 +43,10 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
         setAdLoaded(true);
       }),
       ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
-        addCompeteTry();
+        if (eloDelta && eloDelta > 0 && !hasDoubledElo) {
+          updateElo(eloDelta);
+          setHasDoubledElo(true);
+        }
       }),
       ad.addAdEventListener(AdEventType.CLOSED, () => {
         setAdLoaded(false);
@@ -54,7 +59,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
     unsubscribersRef.current = unsubs;
 
     ad.load();
-  }, [addCompeteTry]);
+  }, [eloDelta, hasDoubledElo, updateElo]);
 
   useEffect(() => {
     loadNewAd();
@@ -65,14 +70,39 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const avgTime = consecutiveCorrect > 0 ? roundTotalTime / consecutiveCorrect : null;
 
+  const currentEloDelta = eloDelta ? (hasDoubledElo ? eloDelta * 2 : eloDelta) : undefined;
+  const oldElo = currentEloDelta !== undefined ? elo - currentEloDelta : elo;
+  const oldTier = getTierForElo(oldElo);
+  const newTier = getTierForElo(elo);
+  const rankedUp = currentEloDelta !== undefined && currentEloDelta > 0 && oldTier.name !== newTier.name;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.content}>
-          {mode === 'compete' ? (
+          {rankedUp ? (
+            <>
+              <Text style={styles.title}>RANK</Text>
+              <Text style={styles.title}>UP!</Text>
+              <View style={styles.rankUpContainer}>
+                <Text style={styles.rankUpIcon}>{newTier.icon}</Text>
+                <Text style={[styles.rankUpText, { color: newTier.color }]}>{newTier.name.toUpperCase()}</Text>
+              </View>
+            </>
+          ) : mode === 'multiplayer' ? (
+            <>
+              <Text style={[styles.title, { fontSize: 40 }]}>{winner}</Text>
+              <Text style={styles.title}>WINS!</Text>
+            </>
+          ) : mode === 'compete' ? (
             <>
               <Text style={styles.title}>YOU</Text>
               <Text style={styles.title}>{isWin ? 'WON!' : 'LOST.'}</Text>
+            </>
+          ) : mode === 'blitz' ? (
+            <>
+              <Text style={styles.title}>TIME</Text>
+              <Text style={styles.title}>UP!</Text>
             </>
           ) : (
             <>
@@ -80,7 +110,7 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
               <Text style={styles.title}>OVER.</Text>
             </>
           )}
-          <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} · {difficulty}</Text>
+          {!rankedUp && <Text style={styles.subtitle}>{mode.charAt(0).toUpperCase() + mode.slice(1)} · {difficulty}</Text>}
 
           <View style={styles.separator} />
 
@@ -88,6 +118,12 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
             <>
               <Text style={styles.label}>TIME TAKEN</Text>
               <Text style={styles.scoreCompete}>{roundTotalTime ? roundTotalTime.toFixed(2) + 's' : '\u2014'}</Text>
+            </>
+          ) : mode === 'blitz' ? (
+            <>
+              <Text style={styles.label}>WORDS SPELLED</Text>
+              <Text style={styles.score}>{blitzScore || 0}</Text>
+              <Text style={styles.subtext}>in 60 seconds</Text>
             </>
           ) : (
             <>
@@ -99,12 +135,12 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
 
           <View style={styles.separator} />
 
-          {mode === 'compete' ? (
+          {(mode === 'train') && (
             <View style={styles.statsRow}>
               <View style={styles.statBoxLeft}>
                 <Text style={styles.statLabel}>ELO CHANGE</Text>
                 <Text style={styles.statValue}>
-                  {eloDelta !== undefined && eloDelta > 0 ? `+${eloDelta}` : eloDelta}
+                  {currentEloDelta !== undefined && currentEloDelta > 0 ? `+${currentEloDelta}` : (currentEloDelta !== undefined ? currentEloDelta : '\u2014')}
                 </Text>
               </View>
               <View style={styles.statBoxRight}>
@@ -112,7 +148,9 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
                 <Text style={styles.statValue}>{elo}</Text>
               </View>
             </View>
-          ) : (
+          )}
+
+          {mode !== 'compete' && mode !== 'train' && (
             <View style={styles.statsRow}>
               <View style={styles.statBoxLeft}>
                 <Text style={styles.statLabel}>AVG TIME</Text>
@@ -144,28 +182,31 @@ export const GameOverScreen: React.FC<Props> = ({ route, navigation }) => {
           <Text style={styles.arrow}>{ARROW}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: COLORS.background, borderTopWidth: 1, borderColor: COLORS.border }]}
-          onPress={() => {
-            playClick(settings.sfx);
-            if (mode === 'compete' && competeTries === 0) {
+        {mode === 'train' && eloDelta && eloDelta > 0 && !hasDoubledElo && (
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#FFD700', borderTopWidth: 1, borderColor: COLORS.border }]}
+            onPress={() => {
+              playClick(settings.sfx);
               if (adLoaded && rewardedRef.current) {
                 rewardedRef.current.show();
               } else {
                 setAdNotReadyVisible(true);
               }
-              return;
-            }
-            if (mode === 'compete') {
-              const success = consumeCompeteTry();
-              if (!success) return;
-            }
-            navigation.replace('Game', { mode, difficulty });
+            }}
+          >
+            <Text style={[styles.buttonTitle, { color: COLORS.black }]}>📺 WATCH AD FOR DOUBLE ELO</Text>
+            <Text style={[styles.arrow, { color: COLORS.black }]}>{ARROW}</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: COLORS.background, borderTopWidth: 1, borderColor: COLORS.border }]}
+          onPress={() => {
+            playClick(settings.sfx);
+            navigation.replace('Game', { mode, difficulty, themeName, dailyWords, customListId });
           }}
         >
-          <Text style={styles.buttonTitle}>
-            {mode === 'compete' && competeTries === 0 ? 'WATCH AD FOR 1 TRY' : 'PLAY AGAIN'}
-          </Text>
+          <Text style={styles.buttonTitle}>PLAY AGAIN</Text>
           <Text style={styles.arrow}>{ARROW}</Text>
         </TouchableOpacity>
       </View>
@@ -199,10 +240,21 @@ const styles = StyleSheet.create({
     lineHeight: ms(70, 0.3),
   },
   subtitle: {
-    ...TYPOGRAPHY.body,
+    ...TYPOGRAPHY.h3,
     color: COLORS.textSecondary,
-    marginTop: scaleY(10),
-    fontWeight: '700',
+  },
+  rankUpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: scaleY(30),
+    gap: ms(10),
+  },
+  rankUpIcon: {
+    fontSize: ms(40),
+  },
+  rankUpText: {
+    ...TYPOGRAPHY.h2,
   },
   separator: {
     height: 1,

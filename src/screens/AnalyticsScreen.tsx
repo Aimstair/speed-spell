@@ -16,8 +16,45 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Analytics'>;
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Expert', 'Olympiad'];
 
 export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
-  const { elo, highestDifficultyCleared, statsByDifficulty, recentRounds, resetStatistics, settings, highestStreak, lifelinesUsed, wordsMastered } = useStore();
+  const { elo, highestDifficultyCleared, statsByDifficulty, recentRounds, resetStatistics, settings, highestStreak, lifelinesUsed, wordsMastered, eloHistory, achievements, typoHistory } = useStore();
   const [resetModalVisible, setResetModalVisible] = useState(false);
+
+  const getTypoInsights = () => {
+    if (!typoHistory || typoHistory.length < 3) return "Keep playing! We need more data to analyze your spelling patterns.";
+
+    let ieEiCount = 0;
+    let doubleConsonantCount = 0;
+    let silentECount = 0;
+
+    typoHistory.forEach(t => {
+      const { expected, actual } = t;
+
+      if ((expected.includes('ie') && actual.includes('ei')) || (expected.includes('ei') && actual.includes('ie'))) {
+        ieEiCount++;
+      }
+
+      const doubleConsonantMatch = expected.match(/([a-z])\1/i);
+      if (doubleConsonantMatch) {
+        const single = doubleConsonantMatch[1];
+        if (actual.includes(single) && !actual.includes(doubleConsonantMatch[0])) {
+          doubleConsonantCount++;
+        }
+      }
+
+      if (expected.endsWith('e') && !expected.endsWith('ee') && !actual.endsWith('e')) {
+        silentECount++;
+      }
+    });
+
+    const maxPitfall = Math.max(ieEiCount, doubleConsonantCount, silentECount);
+    if (maxPitfall < 2) return "Keep playing! We need more data to find your weak patterns.";
+
+    if (maxPitfall === ieEiCount) return "Insight: You frequently mix up 'ie' and 'ei'. Remember: 'i' before 'e', except after 'c'!";
+    if (maxPitfall === doubleConsonantCount) return "Insight: You often miss Double Consonants. Pay close attention to words with double letters!";
+    if (maxPitfall === silentECount) return "Insight: You sometimes forget the Silent 'E' at the end of words.";
+
+    return "No major weak patterns detected yet.";
+  };
 
   const getFavoriteLifeline = () => {
     const { define, origin, sentence } = lifelinesUsed;
@@ -25,6 +62,11 @@ export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
     if (define >= origin && define >= sentence) return '📖 Definition';
     if (origin >= define && origin >= sentence) return '🌍 Origin';
     return '💬 Sentence';
+  };
+
+  const ACHIEVEMENTS_DATA: Record<string, { title: string, desc: string, icon: string }> = {
+    'olympiad_scholar': { title: 'Olympiad Scholar', desc: 'Cleared the Olympiad difficulty', icon: '🏆' },
+    'vocabulary_master': { title: 'Vocabulary Master', desc: 'Mastered 100+ words', icon: '🧠' }
   };
 
   return (
@@ -70,21 +112,20 @@ export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.sectionLabel}>PERFORMANCE BY DIFFICULTY</Text>
           {DIFFICULTIES.map((diff) => {
             const stats = statsByDifficulty[diff];
-            const attempts = Math.max(stats?.totalAttempts || 0, stats?.correctCount || 0);
-            const accuracy = attempts > 0 ? Math.min(100, Math.round((stats.correctCount / attempts) * 100)) + '%' : '—';
-            const bestTime = stats?.bestTime ? stats.bestTime.toFixed(2) : '—';
+            const wordsSpelled = stats?.correctCount || 0;
+            const avgTime = stats && stats.correctCount > 0 ? (stats.totalTime / stats.correctCount).toFixed(2) : '—';
 
             return (
               <View key={diff} style={styles.diffRow}>
                 <Text style={styles.diffLabel}>{diff}</Text>
                 <View style={styles.diffStats}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statBoxLabel}>WIN RATE</Text>
-                    <Text style={styles.statBoxValue}>{accuracy}</Text>
+                    <Text style={styles.statBoxLabel}>WORDS</Text>
+                    <Text style={styles.statBoxValue}>{wordsSpelled}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statBoxLabel}>BEST TIME</Text>
-                    <Text style={styles.statBoxValue}>{bestTime}{bestTime !== '—' && 's'}</Text>
+                    <Text style={styles.statBoxLabel}>AVG TIME</Text>
+                    <Text style={styles.statBoxValue}>{avgTime}{avgTime !== '—' && 's'}</Text>
                   </View>
                 </View>
               </View>
@@ -113,6 +154,59 @@ export const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </View>
         </View>
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.sectionLabel}>PROGRESS GRAPH (30 DAYS)</Text>
+          {eloHistory && eloHistory.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'flex-end', height: 100, marginTop: 10 }}>
+              {eloHistory.map((h, i) => {
+                const maxElo = Math.max(...eloHistory.map(eh => eh.elo), 1200);
+                const barHeight = Math.max((h.elo / maxElo) * 100, 10);
+                return (
+                  <View key={i} style={{ alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>{h.elo}</Text>
+                    <View style={{ width: 24, height: barHeight, backgroundColor: COLORS.black, borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+                  </View>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <Text style={styles.noDataText}>No progress data yet</Text>
+          )}
+        </View>
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.sectionLabel}>ACHIEVEMENTS</Text>
+          {achievements && achievements.length > 0 ? (
+            <View style={{ gap: 10, marginTop: 10 }}>
+              {achievements.map(a => {
+                const data = ACHIEVEMENTS_DATA[a];
+                if (!data) return null;
+                return (
+                  <View key={a} style={{ flexDirection: 'row', alignItems: 'center', gap: 15, padding: 15, backgroundColor: COLORS.white, borderWidth: 2, borderRadius: 8 }}>
+                    <Text style={{ fontSize: 32 }}>{data.icon}</Text>
+                    <View>
+                      <Text style={{ ...TYPOGRAPHY.h3, fontSize: 16 }}>{data.title}</Text>
+                      <Text style={{ ...TYPOGRAPHY.body, color: COLORS.textSecondary, fontSize: 12 }}>{data.desc}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.noDataText}>No achievements unlocked yet</Text>
+          )}
+        </View>
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.sectionLabel}>DEEP LEARNING INSIGHTS</Text>
+          <View style={{ backgroundColor: '#F3F4F6', padding: 15, borderRadius: 8, marginTop: 10 }}>
+            <Text style={{ ...TYPOGRAPHY.body, color: COLORS.black, fontStyle: 'italic' }}>
+              {getTypoInsights()}
+            </Text>
+          </View>
+        </View>
+
 
         <TouchableOpacity
           style={styles.resetButton}

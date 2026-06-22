@@ -4,7 +4,7 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { ms, scaleY } from '../utils/scale';
 
-export type LifelineType = 'define' | 'origin' | 'sentence';
+export type LifelineType = 'define' | 'origin' | 'sentence' | 'phonetic';
 
 interface LifelineBarProps {
   lifelinesRemaining: number;
@@ -19,6 +19,7 @@ const LIFELINE_CONFIG: { type: LifelineType; icon: string; label: string }[] = [
   { type: 'define', icon: '📖', label: 'Define' },
   { type: 'origin', icon: '🌍', label: 'Origin' },
   { type: 'sentence', icon: '💬', label: 'Sentence' },
+  { type: 'phonetic', icon: '🗣️', label: 'Phonetic' },
 ];
 
 export const LifelineBar: React.FC<LifelineBarProps> = ({

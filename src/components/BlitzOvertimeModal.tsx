@@ -6,13 +6,13 @@ import { TYPOGRAPHY } from '../theme/typography';
 import { useStore } from '../store/useStore';
 import { playClick } from '../utils/audio';
 
-interface SecondChanceModalProps {
+interface BlitzOvertimeModalProps {
   visible: boolean;
   onWatchAd: () => void;
   onDecline: () => void;
 }
 
-export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, onWatchAd, onDecline }) => {
+export const BlitzOvertimeModal: React.FC<BlitzOvertimeModalProps> = ({ visible, onWatchAd, onDecline }) => {
   const { settings } = useStore();
   const [timeLeft, setTimeLeft] = useState(10);
   const insets = useSafeAreaInsets();
@@ -43,8 +43,8 @@ export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, o
 
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
-              <Text style={styles.label}>SECOND CHANCE</Text>
-              <Text style={styles.title}>MISSED.</Text>
+              <Text style={styles.label}>TIME</Text>
+              <Text style={styles.title}>UP.</Text>
             </View>
             <View style={styles.headerRight}>
               <Text style={styles.label}>EXPIRES IN</Text>
@@ -56,7 +56,7 @@ export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, o
 
           <View style={styles.body}>
             <Text style={styles.bodyText}>
-              Watch a short ad to save your streak and continue this run.
+              Watch a short ad to add 15 seconds to the clock!
             </Text>
           </View>
 
@@ -64,7 +64,7 @@ export const SecondChanceModal: React.FC<SecondChanceModalProps> = ({ visible, o
 
           <View style={styles.footer}>
             <TouchableOpacity style={styles.watchButton} onPress={() => { playClick(settings.sfx); onWatchAd(); }}>
-              <Text style={styles.watchText}>WATCH AD TO CONTINUE</Text>
+              <Text style={styles.watchText}>WATCH AD FOR +15 SECONDS</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.declineButton} onPress={() => { playClick(settings.sfx); onDecline(); }}>

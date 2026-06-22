@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -7,6 +7,7 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { useStore } from '../store/useStore';
 import { playClick } from '../utils/audio';
+import { CustomAlertModal, CustomAlertButton } from '../components/CustomAlertModal';
 import { ms, scaleY, isSmallDevice } from '../utils/scale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Difficulty'>;
@@ -25,14 +26,19 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
   const { mode } = route.params;
   const isTrain = mode === 'train';
   const { settings, consumeCompeteTry } = useStore();
+  const [alertVisible, setAlertVisible] = React.useState(false);
+
+  const showAlert = () => {
+    setAlertVisible(true);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { playClick(settings.sfx); navigation.goBack(); }}>
+        <TouchableOpacity onPress={() => { playClick(settings.sfx); navigation.goBack(); }} style={{ paddingRight: ms(20) }}>
           <Text style={styles.backButton}>{BACK_ARROW}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>DIFFICULTY</Text>
+        <Text style={styles.headerText}>SPEED SPELL</Text>
         <View style={[styles.modeBadge, { backgroundColor: isTrain ? COLORS.train : COLORS.compete }]}>
           <Text style={styles.modeText}>{mode.toUpperCase()}</Text>
         </View>
@@ -56,7 +62,7 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
               if (mode === 'compete') {
                 const success = consumeCompeteTry();
                 if (!success) {
-                  Alert.alert('Out of tries', 'You have used all 5 compete tries for today. Come back tomorrow!');
+                  showAlert();
                   return;
                 }
               }
@@ -76,6 +82,14 @@ export const DifficultyScreen: React.FC<Props> = ({ route, navigation }) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <CustomAlertModal
+        visible={alertVisible}
+        title="Out of tries"
+        message="You have used all 5 compete tries for today. Come back tomorrow!"
+        buttons={[{ text: "OK", onPress: () => setAlertVisible(false) }]}
+        onDismiss={() => setAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -90,22 +104,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: ms(20),
-    paddingTop: scaleY(10),
-    paddingBottom: scaleY(5),
+    paddingTop: scaleY(15),
+    paddingBottom: scaleY(15),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-  },
-  backBtn: {
-    paddingRight: ms(20),
   },
   backButton: {
     fontSize: ms(24),
     color: COLORS.black,
-    paddingBottom: scaleY(10),
   },
-  headerTitle: {
+  headerText: {
     ...TYPOGRAPHY.subtitle,
-    flex: 1,
   },
   modeBadge: {
     paddingHorizontal: ms(12),

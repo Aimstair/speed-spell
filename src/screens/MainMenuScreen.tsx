@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -9,10 +9,16 @@ import { COLORS } from '../theme/colors';
 import { TYPOGRAPHY } from '../theme/typography';
 import { SettingsModal } from '../components/SettingsModal';
 import { playClick } from '../utils/audio';
+import { CustomAlertModal, CustomAlertButton } from '../components/CustomAlertModal';
 import { RewardedAd, RewardedAdEventType, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { AdNotReadyModal } from '../components/AdNotReadyModal';
 import { TutorialModal } from '../components/TutorialModal';
+import { getTierForElo, getTierProgress } from '../utils/tiers';
 import { ms, scaleY, isSmallDevice } from '../utils/scale';
+import { checkAppVersion } from '../utils/versionCheck';
+import { scheduleRetentionNotifications, scheduleStreakReminder, scheduleGraveyardReminder } from '../utils/notifications';
+import { getLocalTodayString } from '../utils/daily';
+import WORDS_DB from '../utils/words.json';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 
@@ -20,14 +26,36 @@ const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-8621446085621887/96916
 
 const ARROW = '\u2192'; // Unicode right arrow
 
+let hasShownRatePopup = false;
+
+const getDailyWords = () => {
+  const dateStr = getLocalTodayString();
+  let seed = 0;
+  for (let i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i);
+  const db = (WORDS_DB as any)['Intermediate'];
+  return [0, 1, 2, 3, 4].map(i => db[(seed + i * 31) % db.length]);
+};
+
 export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
-  const { elo, accuracy, roundsPlayed, settings, competeTries, syncDailyTries, addCompeteTry, hasSeenTutorial } = useStore();
+  const { elo, accuracy, roundsPlayed, settings, competeTries, syncDailyTries, addCompeteTry, hasSeenTutorial, dailyChallenge, weakWords } = useStore();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
   const [adNotReadyVisible, setAdNotReadyVisible] = useState(false);
   const [adError, setAdError] = useState<string | undefined>();
   const rewardedRef = useRef<ReturnType<typeof RewardedAd.createForAdRequest> | null>(null);
   const unsubscribersRef = useRef<(() => void)[]>([]);
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertButtons, setAlertButtons] = useState<CustomAlertButton[]>([]);
+
+  const showAlert = (title: string, message: string, buttons?: CustomAlertButton[]) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertButtons(buttons || [{ text: "OK", onPress: () => setAlertVisible(false) }]);
+    setAlertVisible(true);
+  };
 
   const loadNewAd = useCallback(() => {
     // Clean up previous listeners
@@ -62,6 +90,29 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
   }, [addCompeteTry]);
 
   useEffect(() => {
+    (async () => {
+      const isUpdateAvailable = await checkAppVersion();
+      if (isUpdateAvailable) {
+        showAlert(
+          "Update Available",
+          "A new version of Speed Spell is available. Please update to continue enjoying the best experience.",
+          [
+            { text: "Later", style: "cancel", onPress: () => setAlertVisible(false) },
+            {
+              text: "Update", onPress: () => {
+                Linking.openURL('market://details?id=com.aimteralabs.speedspell').catch(() => {
+                  Linking.openURL('https://play.google.com/store/apps/details?id=com.aimteralabs.speedspell');
+                });
+                setAlertVisible(false);
+              }
+            }
+          ]
+        );
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     loadNewAd();
     return () => {
       unsubscribersRef.current.forEach(unsub => unsub());
@@ -71,15 +122,43 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       syncDailyTries();
-    }, [syncDailyTries])
+
+      // Schedule retention notifications
+      scheduleRetentionNotifications();
+      scheduleGraveyardReminder(weakWords.length);
+
+      const hasPlayedToday = dailyChallenge.lastDate === getLocalTodayString();
+      scheduleStreakReminder(dailyChallenge.streak, hasPlayedToday);
+
+    }, [syncDailyTries, weakWords.length, dailyChallenge])
   );
+
+  useEffect(() => {
+    if (!hasShownRatePopup && hasSeenTutorial) {
+      hasShownRatePopup = true;
+      showAlert(
+        "Enjoying Speed Spell?",
+        "Please take a moment to rate us on the Play Store!",
+        [
+          { text: "Cancel", style: "cancel", onPress: () => setAlertVisible(false) },
+          {
+            text: "Rate App",
+            onPress: () => {
+              setAlertVisible(false);
+              Linking.openURL('market://details?id=com.aimteralabs.speedspell').catch(() => {
+                Linking.openURL('https://play.google.com/store/apps/details?id=com.aimteralabs.speedspell');
+              });
+            }
+          }
+        ]
+      );
+    }
+  }, [hasSeenTutorial]);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.header}>
-          {/* <Text style={styles.headerText}>SPEED SPELL</Text> */}
-          {/* <Text style={styles.eloText}><Text style={styles.eloBold}>{elo}</Text> ELO</Text> */}
         </View>
 
         <View style={styles.titleContainer}>
@@ -91,20 +170,35 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>ELO</Text>
-            <Text style={styles.statValue}>{elo}</Text>
+        {/* <View style={[styles.tierCard, { borderColor: getTierForElo(elo).color }]}>
+          <View style={styles.tierHeaderRow}>
+            <Text style={styles.tierIcon}>{getTierForElo(elo).icon}</Text>
+            <View style={{ flex: 1, marginLeft: ms(12) }}>
+              <Text style={styles.tierName}>{getTierForElo(elo).name.toUpperCase()}</Text>
+              <Text style={styles.tierElo}>{elo} ELO</Text>
+            </View>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>ACCURACY</Text>
-            <Text style={styles.statValue}>{accuracy}%</Text>
+          <View style={styles.tierProgressTrack}>
+            <View style={[styles.tierProgressFill, { width: `${getTierProgress(elo) * 100}%`, backgroundColor: getTierForElo(elo).color }]} />
           </View>
-          <View style={[styles.statBox, { borderRightWidth: 0 }]}>
-            <Text style={styles.statLabel}>ROUNDS</Text>
-            <Text style={styles.statValue}>{roundsPlayed}</Text>
+        </View> */}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border }}>
+          <View style={[styles.statsContainer, { borderTopWidth: 0, borderBottomWidth: 0 }]}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>STREAK</Text>
+              <Text style={styles.statValue}>{dailyChallenge.streak}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>ACCURACY</Text>
+              <Text style={styles.statValue}>{accuracy}%</Text>
+            </View>
+            <View style={[styles.statBox, { borderRightWidth: 0 }]}>
+              <Text style={styles.statLabel}>ROUNDS</Text>
+              <Text style={styles.statValue}>{roundsPlayed}</Text>
+            </View>
           </View>
-        </View>
+        </ScrollView>
 
         <View style={styles.buttonsContainer}>
           <TouchableOpacity
@@ -116,30 +210,19 @@ export const MainMenuScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.modeTitle}>TRAIN</Text>
               <Text style={styles.arrow}>{ARROW}</Text>
             </View>
-            <Text style={styles.modeSub}>No score impact</Text>
+            <Text style={styles.modeSub}>Earn ELO</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.modeButton, { backgroundColor: COLORS.compete, opacity: competeTries === 0 ? 0.8 : 1 }]}
-            onPress={() => {
-              playClick(settings.sfx);
-              if (competeTries === 0) {
-                if (adLoaded && rewardedRef.current) {
-                  rewardedRef.current.show();
-                } else {
-                  setAdNotReadyVisible(true);
-                }
-              } else {
-                navigation.navigate('Difficulty', { mode: 'compete' });
-              }
-            }}
+            style={[styles.modeButton, { backgroundColor: COLORS.compete }]}
+            onPress={() => { playClick(settings.sfx); navigation.navigate('GameModes'); }}
           >
-            <Text style={styles.modeLabel}>02 — RANKED</Text>
+            <Text style={styles.modeLabel}>02 — CUSTOM</Text>
             <View style={styles.modeTitleRow}>
-              <Text style={styles.modeTitle}>COMPETE</Text>
+              <Text style={styles.modeTitle}>GAME MODES</Text>
               <Text style={styles.arrow}>{ARROW}</Text>
             </View>
-            <Text style={styles.modeSub}>{competeTries > 0 ? `${competeTries} TRIES LEFT` : 'WATCH AD FOR 1 TRY'}</Text>
+            <Text style={styles.modeSub}>Daily Challenge, Graveyard, and Custom</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -218,6 +301,46 @@ const styles = StyleSheet.create({
   subtitle: {
     ...TYPOGRAPHY.subtitle,
   },
+  tierCard: {
+    marginHorizontal: ms(20),
+    marginBottom: scaleY(15),
+    padding: ms(15),
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderRadius: ms(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+  },
+  tierHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: scaleY(10),
+  },
+  tierIcon: {
+    fontSize: ms(32),
+  },
+  tierName: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.black,
+  },
+  tierElo: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: 'bold',
+  },
+  tierProgressTrack: {
+    height: ms(8),
+    backgroundColor: COLORS.border,
+    borderRadius: ms(4),
+    overflow: 'hidden',
+  },
+  tierProgressFill: {
+    height: '100%',
+    borderRadius: ms(4),
+  },
   statsContainer: {
     flexDirection: 'row',
     borderTopWidth: 1,
@@ -226,7 +349,7 @@ const styles = StyleSheet.create({
     paddingVertical: scaleY(15),
   },
   statBox: {
-    flex: 1,
+    width: ms(130),
     paddingHorizontal: ms(20),
     borderRightWidth: 1,
     borderRightColor: COLORS.border,
@@ -270,7 +393,21 @@ const styles = StyleSheet.create({
   modeSub: {
     ...TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    marginTop: 5,
+    opacity: 0.8,
+  },
+  themeButton: {
+    paddingVertical: scaleY(15),
+    paddingHorizontal: ms(20),
+    backgroundColor: COLORS.white,
+    borderWidth: 2,
+    borderColor: COLORS.black,
+    borderRadius: 8,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+  },
+  themeTitle: {
+    ...TYPOGRAPHY.h3,
+    fontSize: ms(16),
   },
   footer: {
     flexDirection: 'row',

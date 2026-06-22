@@ -29,7 +29,8 @@ export const requestNotificationPermissions = async () => {
 };
 
 const CANCEL_RETENTION_IDENTIFIER = 'retention-notification';
-const CANCEL_REPLENISH_IDENTIFIER = 'replenish-notification';
+const CANCEL_STREAK_IDENTIFIER = 'streak-notification';
+const CANCEL_GRAVEYARD_IDENTIFIER = 'graveyard-notification';
 
 export const scheduleRetentionNotifications = async () => {
   await Notifications.cancelScheduledNotificationAsync(CANCEL_RETENTION_IDENTIFIER);
@@ -53,7 +54,7 @@ export const scheduleRetentionNotifications = async () => {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "We miss you! 👋",
-      body: "Your cognitive score is waiting to be improved. Come play a round!",
+      body: "Your ELO is waiting to be improved. Come play a round!",
       sound: true,
     },
     trigger: {
@@ -64,26 +65,47 @@ export const scheduleRetentionNotifications = async () => {
   });
 };
 
-export const scheduleCompeteReplenishNotification = async () => {
-  await Notifications.cancelScheduledNotificationAsync(CANCEL_REPLENISH_IDENTIFIER);
+export const scheduleStreakReminder = async (currentStreak: number, hasPlayedToday: boolean) => {
+  await Notifications.cancelScheduledNotificationAsync(CANCEL_STREAK_IDENTIFIER);
+
+  if (hasPlayedToday || currentStreak === 0) return;
 
   const now = new Date();
-  
-  // We want to notify them the morning AFTER their tries replenish.
-  // Tries replenish at local midnight. We'll notify at 8:00 AM the next day.
-  const nextMorning = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0, 0);
-  const secondsUntilMorning = Math.max(60, Math.floor((nextMorning.getTime() - now.getTime()) / 1000));
-  
+  const reminderTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0); // 6:00 PM today
+
+  if (now.getTime() < reminderTime.getTime()) {
+    const secondsUntilReminder = Math.floor((reminderTime.getTime() - now.getTime()) / 1000);
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Streak at Risk! 🔥",
+        body: `Your ${currentStreak}-day Speed Spell streak is at risk! Tap to practice.`,
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secondsUntilReminder,
+      },
+      identifier: CANCEL_STREAK_IDENTIFIER,
+    });
+  }
+};
+
+export const scheduleGraveyardReminder = async (weakWordCount: number) => {
+  await Notifications.cancelScheduledNotificationAsync(CANCEL_GRAVEYARD_IDENTIFIER);
+
+  if (weakWordCount < 5) return;
+
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Tries Replenished! 🏆",
-      body: "Your daily ranked tries are full. Go get that ELO!",
+      title: "The Graveyard is Full! 🪦",
+      body: `You have ${weakWordCount} weak words waiting to be reviewed. Time to clear them!`,
       sound: true,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: secondsUntilMorning,
+      seconds: 60 * 60 * 24 * 2, // 2 days from now
     },
-    identifier: CANCEL_REPLENISH_IDENTIFIER,
+    identifier: CANCEL_GRAVEYARD_IDENTIFIER,
   });
 };
